@@ -1,10 +1,12 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  schemas  = ["public", "auth"]
 }
 
 model User {
@@ -66,6 +68,7 @@ model User {
   cosmetics          CosmeticItem[]
   foneLoveWallet     FoneLoveWallet?
   activeFeatures     ActivePremiumFeature[]
+  @@schema("public")
 }
 
 model Profile {
@@ -87,6 +90,7 @@ model Profile {
   updatedAt       DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@schema("public")
 }
 
 model Photo {
@@ -98,6 +102,7 @@ model Photo {
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@schema("public")
 }
 
 model Prompt {
@@ -108,6 +113,7 @@ model Prompt {
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@schema("public")
 }
 
 model Moment {
@@ -121,6 +127,7 @@ model Moment {
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@schema("public")
 }
 
 model NumberRequest {
@@ -136,6 +143,7 @@ model NumberRequest {
 
   sender   User  @relation("SentRequests", fields: [senderId], references: [id], onDelete: Cascade)
   receiver User  @relation("ReceivedRequests", fields: [receiverId], references: [id], onDelete: Cascade)
+  @@schema("public")
 }
 
 model Message {
@@ -152,6 +160,7 @@ model Message {
 
   sender   User  @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
   receiver User  @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+  @@schema("public")
 }
 
 model Connection {
@@ -165,6 +174,7 @@ model Connection {
 
   user1 User @relation("User1Connections", fields: [user1Id], references: [id], onDelete: Cascade)
   user2 User @relation("User2Connections", fields: [user2Id], references: [id], onDelete: Cascade)
+  @@schema("public")
 }
 
 model Like {
@@ -176,6 +186,7 @@ model Like {
 
   sender   User @relation("SentLikes", fields: [senderId], references: [id], onDelete: Cascade)
   receiver User @relation("ReceivedLikes", fields: [receiverId], references: [id], onDelete: Cascade)
+  @@schema("public")
 }
 
 model ProfileVisit {
@@ -185,6 +196,7 @@ model ProfileVisit {
   createdAt DateTime @default(now())
 
   user User @relation(fields: [visitorId], references: [id], onDelete: Cascade)
+  @@schema("public")
 }
 
 model Report {
@@ -197,6 +209,7 @@ model Report {
 
   reporter User @relation("ReportedBy", fields: [reporterId], references: [id], onDelete: Cascade)
   reported User @relation("ReportedUser", fields: [reportedId], references: [id], onDelete: Cascade)
+  @@schema("public")
 }
 
 model Badge {
@@ -206,6 +219,7 @@ model Badge {
   earnedAt  DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@schema("public")
 }
 
 model EventSignup {
@@ -215,6 +229,7 @@ model EventSignup {
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@schema("public")
 }
 
 model Wallet {
@@ -233,6 +248,7 @@ model Wallet {
 
   user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   transactions Transaction[]
+  @@schema("public")
 }
 
 model Transaction {
@@ -247,6 +263,7 @@ model Transaction {
   createdAt   DateTime @default(now())
 
   wallet Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  @@schema("public")
 }
 
 model DailyStreak {
@@ -260,6 +277,7 @@ model DailyStreak {
   updatedAt   DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@schema("public")
 }
 
 model Challenge {
@@ -273,6 +291,7 @@ model Challenge {
   createdAt   DateTime @default(now())
 
   progress ChallengeProgress[]
+  @@schema("public")
 }
 
 model ChallengeProgress {
@@ -289,6 +308,7 @@ model ChallengeProgress {
   challenge Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
   
   @@unique([userId, challengeId])
+  @@schema("public")
 }
 
 model PromoOffer {
@@ -307,6 +327,7 @@ model PromoOffer {
   createdAt   DateTime @default(now())
 
   userPromos UserPromo[]
+  @@schema("public")
 }
 
 model UserPromo {
@@ -320,6 +341,7 @@ model UserPromo {
   promo PromoOffer @relation(fields: [promoId], references: [id], onDelete: Cascade)
   
   @@unique([userId, promoId])
+  @@schema("public")
 }
 
 model CosmeticItem {
@@ -332,6 +354,7 @@ model CosmeticItem {
   purchasedAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@schema("public")
 }
 
 // ===== FoneLove Gifting System =====
@@ -351,6 +374,7 @@ model FoneLoveWallet {
   sentGifts    FoneLoveGift[]        @relation("FLSentGifts")
   receivedGifts FoneLoveGift[]       @relation("FLReceivedGifts")
   transactions FoneLoveTransaction[]
+  @@schema("public")
 }
 
 model FoneLoveGift {
@@ -364,6 +388,7 @@ model FoneLoveGift {
 
   sender   FoneLoveWallet @relation("FLSentGifts", fields: [senderId], references: [userId], onDelete: Cascade)
   receiver FoneLoveWallet @relation("FLReceivedGifts", fields: [receiverId], references: [userId], onDelete: Cascade)
+  @@schema("public")
 }
 
 model FoneLoveTransaction {
@@ -376,6 +401,7 @@ model FoneLoveTransaction {
   createdAt   DateTime @default(now())
 
   wallet FoneLoveWallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  @@schema("public")
 }
 
 model FoneLoveConfig {
@@ -388,6 +414,7 @@ model FoneLoveConfig {
   isActive            Boolean  @default(true)
   updatedAt           DateTime @updatedAt
   createdAt           DateTime @default(now())
+  @@schema("public")
 }
 
 // ===== Premium Action Configuration (Admin-controlled) =====
@@ -402,6 +429,7 @@ model PremiumActionConfig {
   emoji           String   @default("")
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+  @@schema("public")
 }
 
 model ActivePremiumFeature {
@@ -418,4 +446,5 @@ model ActivePremiumFeature {
 
   @@index([userId, action])
   @@index([expiresAt])
+  @@schema("public")
 }
