@@ -1,0 +1,421 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  phone         String    @unique
+  password      String
+  firstName     String
+  lastName      String?
+  birthDate     DateTime?
+  gender        String?
+  astrologicalSign String?
+  height        Int?
+  relationshipStatus String?
+  lookingFor       String?
+  lookingForGender  String?
+  city             String?
+  countryCode      String?
+  bio              String?
+  mood          String?
+  spotifyAnthem String?
+  isVerified    Boolean   @default(false)
+  isPhotoVerified Boolean @default(false)
+  isActive      Boolean   @default(true)
+  isPremium     Boolean   @default(false)
+  premiumExpiry DateTime?
+  role          String    @default("user") // "user" | "admin" | "super_admin"
+  isIncognito   Boolean   @default(false)
+  isPaused      Boolean   @default(false)
+  profileScore  Int       @default(0)
+  dailyBoostUsed Boolean  @default(false)
+  superRequestsLeft Int   @default(0)
+  streakDays    Int       @default(0)
+  lastActiveAt  DateTime  @default(now())
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  profile       Profile?
+  photos        Photo[]
+  prompts       Prompt[]
+  moments       Moment[]
+  sentRequests  NumberRequest[] @relation("SentRequests")
+  receivedRequests NumberRequest[] @relation("ReceivedRequests")
+  sentMessages  Message[]   @relation("SentMessages")
+  receivedMessages Message[] @relation("ReceivedMessages")
+  connectionsAsUser1 Connection[] @relation("User1Connections")
+  connectionsAsUser2 Connection[] @relation("User2Connections")
+  sentLikes     Like[]     @relation("SentLikes")
+  receivedLikes Like[]     @relation("ReceivedLikes")
+  reports       Report[]   @relation("ReportedBy")
+  reportedBy    Report[]   @relation("ReportedUser")
+  visits        ProfileVisit[]
+  badges        Badge[]
+  eventSignups  EventSignup[]
+  wallet             Wallet?
+  dailyStreak        DailyStreak?
+  challengeProgress  ChallengeProgress[]
+  promoClaims        UserPromo[]
+  cosmetics          CosmeticItem[]
+  foneLoveWallet     FoneLoveWallet?
+  activeFeatures     ActivePremiumFeature[]
+}
+
+model Profile {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  jobTitle        String?
+  company         String?
+  education       String?
+  city            String?
+  country         String?
+  latitude        Float?
+  longitude       Float?
+  interests       String?  // JSON array stored as string
+  values          String?  // JSON array stored as string
+  lifestyle       String?  // JSON array stored as string
+  onboardingStep  Int      @default(0)
+  onboardingDone  Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Photo {
+  id        String   @id @default(cuid())
+  userId    String
+  url       String
+  position  Int      @default(0)
+  isPrimary Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Prompt {
+  id        String   @id @default(cuid())
+  userId    String
+  question  String
+  answer    String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Moment {
+  id        String   @id @default(cuid())
+  userId    String
+  content   String?  // text content
+  mediaUrl  String?  // photo or video URL
+  type      String   @default("photo") // photo, video, poll
+  pollOptions String? // JSON for poll options
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model NumberRequest {
+  id           String   @id @default(cuid())
+  senderId     String
+  receiverId   String
+  message      String?  // 160 char max hook message
+  isSuper      Boolean  @default(false)
+  status       String   @default("pending") // pending, accepted, declined
+  createdAt    DateTime @default(now())
+  respondedAt  DateTime?
+  expiresAt    DateTime?
+
+  sender   User  @relation("SentRequests", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver User  @relation("ReceivedRequests", fields: [receiverId], references: [id], onDelete: Cascade)
+}
+
+model Message {
+  id           String   @id @default(cuid())
+  senderId     String
+  receiverId   String
+  requestId    String?  // linked to a number request for pre-number chat
+  content      String
+  type         String   @default("text") // text, voice, emoji_reaction
+  voiceUrl     String?  // for voice messages
+  isRead       Boolean  @default(false)
+  expiresAt    DateTime?
+  createdAt    DateTime @default(now())
+
+  sender   User  @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver User  @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+}
+
+model Connection {
+  id           String   @id @default(cuid())
+  user1Id      String
+  user2Id      String
+  requestId    String?  // the accepted number request
+  phoneNumber1 String?  // user1's phone shared with user2
+  phoneNumber2 String?  // user2's phone shared with user1
+  createdAt    DateTime @default(now())
+
+  user1 User @relation("User1Connections", fields: [user1Id], references: [id], onDelete: Cascade)
+  user2 User @relation("User2Connections", fields: [user2Id], references: [id], onDelete: Cascade)
+}
+
+model Like {
+  id        String   @id @default(cuid())
+  senderId  String
+  receiverId String
+  isMutual  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  sender   User @relation("SentLikes", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver User @relation("ReceivedLikes", fields: [receiverId], references: [id], onDelete: Cascade)
+}
+
+model ProfileVisit {
+  id        String   @id @default(cuid())
+  visitorId String
+  profileId String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [visitorId], references: [id], onDelete: Cascade)
+}
+
+model Report {
+  id          String   @id @default(cuid())
+  reporterId  String
+  reportedId  String
+  reason      String
+  description String?
+  createdAt   DateTime @default(now())
+
+  reporter User @relation("ReportedBy", fields: [reporterId], references: [id], onDelete: Cascade)
+  reported User @relation("ReportedUser", fields: [reportedId], references: [id], onDelete: Cascade)
+}
+
+model Badge {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String   // "quick_reply", "popular", "loyal", "verified", "premium"
+  earnedAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model EventSignup {
+  id        String   @id @default(cuid())
+  userId    String
+  eventId   String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Wallet {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  balance     Int      @default(0)
+  totalEarned Int      @default(0)
+  totalSpent  Int      @default(0)
+  dailyFreeClaimed Boolean @default(false)
+  dailyFreeStreak  Int      @default(0)
+  lastFreeClaimAt  DateTime?
+  lastBoostAt      DateTime?
+  freeBoostClaimed Boolean @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+}
+
+model Transaction {
+  id          String   @id @default(cuid())
+  walletId    String
+  type        String
+  amount      Int
+  action      String?
+  packType    String?
+  description String?
+  metadata    String?
+  createdAt   DateTime @default(now())
+
+  wallet Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+}
+
+model DailyStreak {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  currentStreak Int    @default(0)
+  longestStreak Int    @default(0)
+  lastCheckIn DateTime?
+  todayBonusClaimed Boolean @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Challenge {
+  id          String   @id @default(cuid())
+  type        String
+  title       String
+  description String
+  targetCount Int
+  reward      Int
+  resetsAt    DateTime
+  createdAt   DateTime @default(now())
+
+  progress ChallengeProgress[]
+}
+
+model ChallengeProgress {
+  id          String   @id @default(cuid())
+  userId      String
+  challengeId String
+  progress    Int      @default(0)
+  completed   Boolean  @default(false)
+  claimed     Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  challenge Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, challengeId])
+}
+
+model PromoOffer {
+  id          String   @id @default(cuid())
+  type        String
+  title       String
+  description String
+  discountPercent Int?
+  bonusCC     Int?
+  bonusAction String?
+  packType    String?
+  triggerCondition String?
+  startsAt    DateTime
+  expiresAt   DateTime
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  userPromos UserPromo[]
+}
+
+model UserPromo {
+  id          String   @id @default(cuid())
+  userId      String
+  promoId     String
+  used        Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  promo PromoOffer @relation(fields: [promoId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, promoId])
+}
+
+model CosmeticItem {
+  id          String   @id @default(cuid())
+  userId      String
+  type        String
+  isActive    Boolean  @default(false)
+  customText  String?
+  colorChoice String?
+  purchasedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ===== FoneLove Gifting System =====
+
+model FoneLoveWallet {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  balance         Int      @default(0)     // FoneLove disponibles à envoyer
+  receivedBalance Int      @default(0)     // FoneLove reçus (convertibles en argent)
+  totalSent       Int      @default(0)
+  totalReceived   Int      @default(0)
+  totalWithdrawn  Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user         User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sentGifts    FoneLoveGift[]        @relation("FLSentGifts")
+  receivedGifts FoneLoveGift[]       @relation("FLReceivedGifts")
+  transactions FoneLoveTransaction[]
+}
+
+model FoneLoveGift {
+  id          String   @id @default(cuid())
+  senderId    String
+  receiverId  String
+  amount      Int
+  message     String?
+  isSeen      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  sender   FoneLoveWallet @relation("FLSentGifts", fields: [senderId], references: [userId], onDelete: Cascade)
+  receiver FoneLoveWallet @relation("FLReceivedGifts", fields: [receiverId], references: [userId], onDelete: Cascade)
+}
+
+model FoneLoveTransaction {
+  id          String   @id @default(cuid())
+  walletId    String
+  type        String   // 'recharge', 'send', 'receive', 'withdraw', 'convert_from_cc'
+  amount      Int
+  description String?
+  metadata    String?
+  createdAt   DateTime @default(now())
+
+  wallet FoneLoveWallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+}
+
+model FoneLoveConfig {
+  id                  String   @id @default(cuid())
+  unitPriceEur        Float    @default(0.50)
+  withdrawValueEur    Float    @default(0.30)
+  commissionPercent   Int      @default(40)
+  minWithdrawAmount   Int      @default(10)
+  maxDailyGiftPerUser Int      @default(100)
+  isActive            Boolean  @default(true)
+  updatedAt           DateTime @updatedAt
+  createdAt           DateTime @default(now())
+}
+
+// ===== Premium Action Configuration (Admin-controlled) =====
+
+model PremiumActionConfig {
+  id              String   @id @default(cuid())
+  action          String   @unique // 'boost', 'super_request', etc.
+  durationMinutes Int      @default(1440)  // Default 24h = 1440 min
+  isEnabled       Boolean  @default(true)
+  costCC          Int      @default(5)
+  label           String   @default("")
+  emoji           String   @default("")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model ActivePremiumFeature {
+  id          String   @id @default(cuid())
+  userId      String
+  action      String   // 'boost', 'ghost_mode', 'theme_flame', etc.
+  activatedAt DateTime @default(now())
+  expiresAt   DateTime
+  metadata    String?  // JSON: { colorChoice, customText, etc. }
+  isConsumed  Boolean  @default(false) // For one-shot actions (undo_pass)
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, action])
+  @@index([expiresAt])
+}

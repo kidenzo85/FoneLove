@@ -1,0 +1,153 @@
+"use client"
+
+import { useEffect, useState } from "react"
+import { motion, AnimatePresence } from "framer-motion"
+import { Phone, Heart, Download, X } from "lucide-react"
+
+// Types pour BeforeInstallPromptEvent
+interface BeforeInstallPromptEvent extends Event {
+  readonly platforms: string[]
+  readonly userChoice: Promise<{
+    outcome: "accepted" | "dismissed"
+    platform: string
+  }>
+  prompt(): Promise<void>
+}
+
+export default function InstallPrompt() {
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
+  const [showPrompt, setShowPrompt] = useState(false)
+  const [isIOS, setIsIOS] = useState(false)
+  const [isStandalone, setIsStandalone] = useState(false)
+
+  useEffect(() => {
+    // Vérifier si l'app est déjà installée
+    const isPwa = window.matchMedia("(display-mode: standalone)").matches || 
+                 (window.navigator as any).standalone === true
+    setIsStandalone(isPwa)
+
+    if (isPwa) return
+
+    // Détection iOS
+    const userAgent = window.navigator.userAgent.toLowerCase()
+    const isIosDevice = /iphone|ipad|ipod/.test(userAgent)
+    setIsIOS(isIosDevice)
+
+    // Capture de l'événement natif d'installation (Android/Chrome)
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault()
+      setDeferredPrompt(e as BeforeInstallPromptEvent)
+    }
+
+    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt)
+
+    // Logique d'affichage (ne pas harceler)
+    const hasDismissed = localStorage.getItem("fonelove-pwa-dismissed")
+    if (!hasDismissed) {
+      // Attendre un peu avant d'afficher pour ne pas agresser dès la première seconde
+      const timer = setTimeout(() => {
+        setShowPrompt(true)
+      }, 5000)
+      return () => clearTimeout(timer)
+    }
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt)
+    }
+  }, [])
+
+  const handleInstall = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt()
+      const { outcome } = await deferredPrompt.userChoice
+      if (outcome === "accepted") {
+        setShowPrompt(false)
+      }
+      setDeferredPrompt(null)
+    }
+  }
+
+  const handleDismiss = () => {
+    setShowPrompt(false)
+    localStorage.setItem("fonelove-pwa-dismissed", "true")
+  }
+
+  // Ne rien afficher si déjà installée, ou si on n'a ni prompt natif ni iOS
+  if (isStandalone || (!deferredPrompt && !isIOS)) return null
+
+  return (
+    <AnimatePresence>
+      {showPrompt && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xl"
+        >
+          <motion.div
+            initial={{ scale: 0.9, y: 20 }}
+            animate={{ scale: 1, y: 0 }}
+            exit={{ scale: 0.9, y: 20 }}
+            className="relative w-full max-w-sm overflow-hidden rounded-3xl bg-neutral-900 border border-white/10 p-6 shadow-2xl"
+          >
+            <button
+              onClick={handleDismiss}
+              className="absolute right-4 top-4 rounded-full bg-white/10 p-1.5 text-white/60 hover:bg-white/20 hover:text-white transition-colors"
+            >
+              <X className="size-5" />
+            </button>
+
+            <div className="flex flex-col items-center text-center">
+              {/* Logo */}
+              <div className="mb-6 flex justify-center">
+                <img 
+                  src="/logo.webp" 
+                  alt="Fonelove" 
+                  className="h-16 w-16 rounded-[20px] object-cover shadow-xl shadow-pink-500/30"
+                />
+              </div>
+
+              <h2 className="mb-2 text-2xl font-black tracking-tight text-white">
+                Installe Fonelove
+              </h2>
+              <p className="mb-8 text-sm font-medium text-white/60">
+                Pour une expérience plus rapide, plus fluide, et pour recevoir tes notifications en temps réel.
+              </p>
+
+              {isIOS && !deferredPrompt ? (
+                <div className="flex w-full flex-col gap-3 rounded-2xl bg-white/5 p-4 text-left text-sm text-white/80">
+                  <p className="font-semibold text-white mb-1">Comment installer sur iPhone :</p>
+                  <ol className="flex flex-col gap-3">
+                    <li className="flex items-center gap-3">
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/20 text-primary text-xs font-bold">1</span>
+                      <span>Appuie sur le bouton <strong>Partager</strong> en bas de l'écran</span>
+                    </li>
+                    <li className="flex items-center gap-3">
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/20 text-primary text-xs font-bold">2</span>
+                      <span>Fais défiler et choisis <strong>"Sur l'écran d'accueil"</strong></span>
+                    </li>
+                  </ol>
+                </div>
+              ) : (
+                <button
+                  onClick={handleInstall}
+                  className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-primary to-rose-500 py-4 font-bold text-white shadow-lg shadow-primary/25 active:scale-[0.98] transition-transform"
+                >
+                  <Download className="size-5" />
+                  Installer l'Application
+                </button>
+              )}
+              
+              <button 
+                onClick={handleDismiss}
+                className="mt-4 text-xs font-semibold text-white/40 hover:text-white/60"
+              >
+                Continuer sur le navigateur
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  )
+}
