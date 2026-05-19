@@ -729,7 +729,7 @@ function InlineAuth() {
         size: 'large',
         text: 'continue_with',
         logo_alignment: 'left',
-        width: node.offsetWidth || 300,
+        width: 280,
       })
     }
   }, [googleLoaded])
@@ -847,7 +847,6 @@ function InlineAuth() {
     <div className="w-full max-w-[340px] mx-auto animate-fade-in-up-delay-2">
       {/* Glassmorphism card */}
       <motion.div
-        layout
         className="relative overflow-hidden rounded-[24px] shadow-2xl shadow-black/40"
         initial={{ opacity: 0, scale: 0.9, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -855,7 +854,6 @@ function InlineAuth() {
           type: 'spring', 
           stiffness: 260, 
           damping: 20,
-          layout: { duration: 0.3, ease: 'easeOut' }
         }}
       >
         {/* Animated gradient border */}
@@ -898,15 +896,11 @@ function InlineAuth() {
               >
                 {/* Google One Tap — Real rendered button */}
                 {googleLoaded ? (
-                  <motion.div 
-                    initial={{ opacity: 0, y: 5 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="flex justify-center"
-                  >
-                    <div ref={googleBtnRef} className="w-full [&>div]:!w-full [&>div>div]:!w-full [&>div>div]:!h-[56px] [&>div>div]:!rounded-2xl overflow-hidden" />
-                  </motion.div>
+                  <div className="flex justify-center w-full relative z-20">
+                    <div ref={googleBtnRef} className="w-[280px] h-[40px] overflow-hidden" />
+                  </div>
                 ) : (
-                  <div className="relative w-full h-[56px] rounded-2xl bg-white/5 border border-white/10 animate-pulse overflow-hidden">
+                  <div className="relative w-full max-w-[280px] h-[40px] mx-auto rounded-full bg-white/5 border border-white/10 animate-pulse overflow-hidden">
                     <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent animate-shimmer" />
                     <div className="flex items-center justify-center gap-3 h-full">
                       <div className="h-5 w-5 rounded-full bg-white/10" />
@@ -918,19 +912,19 @@ function InlineAuth() {
                 {/* Separator */}
                 <div className="relative py-1">
                   <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-white/10" /></div>
-                  <div className="relative flex justify-center text-[10px] uppercase"><span className="bg-black/60 px-3 text-white/25">ou</span></div>
+                  <div className="relative flex justify-center text-[10px] uppercase"><span className="bg-[#0a0a12]/95 px-3 text-white/25">ou</span></div>
                 </div>
 
                 {/* Email button */}
                 <motion.button
                   onClick={() => { setStep('email'); setError('') }}
-                  className="flex w-full items-center gap-3 rounded-2xl bg-white/[0.07] border border-white/[0.1] backdrop-blur-sm px-4 py-3.5 font-semibold text-white/90 hover:bg-white/[0.12] transition-all min-h-[56px] touch-manipulation"
+                  className="flex w-full items-center justify-center gap-2.5 rounded-full bg-white/[0.06] border border-white/[0.08] backdrop-blur-sm h-[40px] text-xs font-semibold text-white/80 hover:bg-white/[0.12] transition-colors"
                   whileTap={{ scale: 0.98 }}
                 >
-                  <svg className="size-5 text-white/50 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <svg className="size-4 text-white/40 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
                   </svg>
-                  <span className="text-sm">{t('landing.authEmail')}</span>
+                  <span>{t('landing.authEmail')}</span>
                 </motion.button>
               </motion.div>
             )}
