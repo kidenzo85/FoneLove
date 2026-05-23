@@ -44,6 +44,8 @@ import {
   Tooltip, Legend, ResponsiveContainer, Cell
 } from 'recharts'
 import { cn } from '@/lib/utils'
+import { ConfigProvider, useConfigStore } from '@/lib/config-store'
+import { PacksConfigTable } from './PacksConfigTable'
 import { useAppStore } from '@/lib/store'
 
 // ============================================
@@ -348,7 +350,7 @@ function generateMockPremium(users: MockUser[]): MockPremium[] {
 }
 
 function generateChart30Days() {
-  const data = []
+  const data: any[] = []
   for (let i = 30; i >= 1; i--) {
     const day = 30 - i + 1
     data.push({
@@ -1793,7 +1795,7 @@ function PremiumPage({ premiumSubs, chartData }: { premiumSubs: MockPremium[]; c
 // ============================================
 // COMPONENT: PREMIUM CONFIGS TABLE
 // ============================================
-function PremiumConfigsTable() {
+function PremiumConfigsTable({ currentUserId }: { currentUserId: string }) {
   const [configs, setConfigs] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState<string | null>(null)
@@ -1822,7 +1824,7 @@ function PremiumConfigsTable() {
       const res = await fetch('/api/credits/active-features/configs', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, ...updates }),
+        body: JSON.stringify({ action, ...updates, requesterId: currentUserId }),
       })
       if (res.ok) {
         await loadConfigs() // Reload to reflect changes
@@ -1908,7 +1910,7 @@ function PremiumConfigsTable() {
 // ============================================
 // PAGE: CONFIGURATION
 // ============================================
-function SettingsPage() {
+function SettingsPage({ currentUserId }: { currentUserId: string }) {
   const { config, setConfig } = useAppStore()
   const [appName, setAppName] = useState('Fonelove')
   const [appDesc, setAppDesc] = useState('La dating app où le numéro est la destination')
@@ -2034,8 +2036,11 @@ function SettingsPage() {
         </CardContent>
       </Card>
 
+      {/* Packs Configurations (CC & FoneLove) */}
+      <PacksConfigTable />
+
       {/* Premium Actions Configuration */}
-      <PremiumConfigsTable />
+      <PremiumConfigsTable currentUserId={currentUserId} />
 
       {/* Notification Settings */}
       <Card className="shadow-md">
@@ -2426,6 +2431,78 @@ function NotificationsPage() {
           </DialogHeader>
 
           <div className="space-y-4 mt-4">
+            {/* Quick Templates */}
+            <div className="space-y-2">
+              <Label className="text-xs text-rose-500 font-bold uppercase tracking-wider flex items-center gap-1">
+                <Sparkles className="size-3" /> Modèles de notification accrocheurs (clic pour remplir)
+              </Label>
+              <div className="flex flex-wrap gap-1.5 p-2 rounded-xl bg-slate-900/60 border border-white/[0.04]">
+                {[
+                  {
+                    label: '💕 Retrouvailles',
+                    title: 'Tu nous manques ! 💕',
+                    body: 'Quelqu\'un a visité ton profil aujourd\'hui. Viens voir de qui il s\'agit !',
+                    type: 'marketing',
+                    target: 'inactive',
+                    url: '/',
+                    tag: 'retention-inactif'
+                  },
+                  {
+                    label: '🔥 Série',
+                    title: '🔥 Série en danger !',
+                    body: 'N\'oublie pas de réclamer tes ConnectCoins gratuits aujourd\'hui pour garder ton bonus !',
+                    type: 'alert',
+                    target: 'all',
+                    url: '/',
+                    tag: 'streak-saver'
+                  },
+                  {
+                    label: '👀 J\'aime',
+                    title: '👀 Nouveau J\'aime !',
+                    body: 'Une nouvelle personne a flashé sur ton profil ! Ouvre vite pour la découvrir.',
+                    type: 'match',
+                    target: 'free',
+                    url: '/',
+                    tag: 'like-alert'
+                  },
+                  {
+                    label: '🎁 FoneLove',
+                    title: '🎁 FoneLove en attente !',
+                    body: 'Les cadeaux FoneLove pleuvent en ce moment ! Ouvre ton coffre pour voir tes pièces reçues.',
+                    type: 'marketing',
+                    target: 'all',
+                    url: '/?tab=messages',
+                    tag: 'gifting-marketing'
+                  },
+                  {
+                    label: '👑 Premium 50%',
+                    title: '👑 Offre Premium flash !',
+                    body: 'Profite de 50% de réduction sur ton abonnement FoneLove aujourd\'hui uniquement !',
+                    type: 'marketing',
+                    target: 'free',
+                    url: '/?tab=profile',
+                    tag: 'promo-flash'
+                  }
+                ].map((tpl) => (
+                  <button
+                    key={tpl.label}
+                    type="button"
+                    onClick={() => {
+                      setFormTitle(tpl.title)
+                      setFormBody(tpl.body)
+                      setFormType(tpl.type)
+                      setFormTarget(tpl.target)
+                      setFormUrl(tpl.url)
+                      setFormTag(tpl.tag)
+                    }}
+                    className="inline-flex items-center gap-1 rounded-lg bg-rose-500/10 border border-rose-500/20 px-2.5 py-1 text-xs font-semibold text-rose-400 hover:bg-rose-500/20 active:scale-95 transition-all"
+                  >
+                    {tpl.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div className="space-y-2">
               <Label>Titre *</Label>
               <Input placeholder="Ex: Nouvelle fonctionnalité !" value={formTitle} onChange={e => setFormTitle(e.target.value)} />
@@ -3044,7 +3121,7 @@ export default function AdminDashboard({ currentUser, onBackToApp }: AdminDashbo
               {activePage === 'reports' && <ReportsPage reports={reports} />}
               {activePage === 'premium' && <PremiumPage premiumSubs={premiumSubs} chartData={chartData} />}
               {activePage === 'notifications' && <NotificationsPage />}
-              {activePage === 'settings' && <SettingsPage />}
+              {activePage === 'settings' && <SettingsPage currentUserId={currentUser?.id} />}
               {activePage === 'gamification' && <GamificationPage />}
             </motion.div>
           </AnimatePresence>

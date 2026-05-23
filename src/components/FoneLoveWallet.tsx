@@ -2,29 +2,26 @@
 
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Gift, ArrowDownToLine, ArrowUpFromLine, History, Coins, Sparkles, CheckCircle2, Minus, Plus } from 'lucide-react'
+import { X, Gift, ArrowDownToLine, ArrowUpFromLine, History, Sparkles, CheckCircle2, Minus, Plus } from 'lucide-react'
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
 import { useFoneLoveStore } from '@/lib/fonelove-store'
-import { useConnectCoinStore } from '@/lib/connectcoin-store'
 import { useAppStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
 const RECHARGE_PACKS = [
-  { amount: 5, label: '5 FoneLove', icon: '💝', gradient: 'from-pink-500/15 to-rose-500/15' },
-  { amount: 20, label: '20 FoneLove', icon: '💖', gradient: 'from-rose-500/15 to-pink-500/15', popular: true },
-  { amount: 50, label: '50 FoneLove', icon: '💕', gradient: 'from-pink-500/15 to-amber-500/15' },
-  { amount: 100, label: '100 FoneLove', icon: '👑', gradient: 'from-amber-500/15 to-yellow-500/15', best: true },
+  { amount: 5, label: '5 FoneLove', icon: '🌹', gradient: 'from-pink-500/15 to-rose-500/15' },
+  { amount: 10, label: '10 FoneLove', icon: '💝', gradient: 'from-rose-500/15 to-pink-500/15' },
+  { amount: 20, label: '20 FoneLove', icon: '💘', gradient: 'from-rose-500/15 to-pink-500/15', popular: true },
+  { amount: 50, label: '50 FoneLove', icon: '💍', gradient: 'from-amber-500/15 to-yellow-500/15', best: true },
 ]
 
 export default function FoneLoveWallet() {
   const { showWallet, setShowWallet, sendBalance, receivedBalance, totalSent, totalReceived, totalWithdrawn,
     config, transactions, fetchWallet, fetchConfig, fetchHistory, rechargeWallet, requestWithdraw } = useFoneLoveStore()
-  const ccBalance = useConnectCoinStore((s) => s.balance)
   const currentUser = useAppStore((s) => s.currentUser)
 
   const [tab, setTab] = useState<'balance' | 'recharge' | 'withdraw'>('balance')
-  const [payMethod, setPayMethod] = useState<'cc' | 'external'>('external')
   const [processing, setProcessing] = useState(false)
   const [success, setSuccess] = useState<string | null>(null)
   const [withdrawAmount, setWithdrawAmount] = useState(10)
@@ -43,7 +40,8 @@ export default function FoneLoveWallet() {
   const handleRecharge = async (amount: number) => {
     if (!currentUser || processing) return
     setProcessing(true)
-    const ok = await rechargeWallet(currentUser.id, amount, payMethod)
+    // FoneLove can only be purchased with real money (CoolPay)
+    const ok = await rechargeWallet(currentUser.id, amount)
     setProcessing(false)
     if (ok) {
       setSuccess(`+${amount} FoneLove ajoutés !`)
@@ -67,7 +65,6 @@ export default function FoneLoveWallet() {
   const commission = config?.commissionPercent ?? 40
   const withdrawValue = config?.withdrawValueEur ?? 0.30
   const netPayout = withdrawAmount * withdrawValue * (1 - commission / 100)
-  const ccPerFL = 5
 
   return (
     <Sheet open={showWallet} onOpenChange={setShowWallet}>
@@ -188,51 +185,36 @@ export default function FoneLoveWallet() {
 
           {tab === 'recharge' && (
             <div className="space-y-4 py-4">
-              {/* Payment method */}
-              <div>
-                <p className="text-xs font-bold text-muted-foreground uppercase mb-2">Moyen de paiement</p>
-                <div className="grid grid-cols-2 gap-2">
-                  <button onClick={() => setPayMethod('external')}
-                    className={cn('rounded-xl border p-3 text-left transition-all',
-                      payMethod === 'external' ? 'border-pink-500/30 bg-pink-500/5' : 'border-border/20')}>
-                    <p className="text-sm font-bold">💳 Paiement</p>
-                    <p className="text-[10px] text-muted-foreground">Carte / Mobile</p>
-                  </button>
-                  <button onClick={() => setPayMethod('cc')}
-                    className={cn('rounded-xl border p-3 text-left transition-all',
-                      payMethod === 'cc' ? 'border-amber-500/30 bg-amber-500/5' : 'border-border/20')}>
-                    <p className="text-sm font-bold flex items-center gap-1"><Coins className="size-3.5 text-amber-400" /> ConnectCoin</p>
-                    <p className="text-[10px] text-muted-foreground">Solde : {ccBalance} CC</p>
-                  </button>
+              {/* Payment info */}
+              <div className="rounded-xl border border-pink-500/20 bg-pink-500/5 p-3 flex items-center gap-2.5">
+                <span className="text-xl">💳</span>
+                <div>
+                  <p className="text-sm font-bold">Paiement Mobile / Carte</p>
+                  <p className="text-[10px] text-muted-foreground">Paiement sécurisé via CoolPay</p>
                 </div>
               </div>
 
               {/* Packs */}
               <div className="space-y-2">
-                {RECHARGE_PACKS.map((pack) => {
-                  const ccCost = pack.amount * ccPerFL
-                  const ccInsufficient = payMethod === 'cc' && ccBalance < ccCost
-                  return (
-                    <motion.button key={pack.amount} whileTap={{ scale: 0.97 }}
-                      onClick={() => !ccInsufficient && handleRecharge(pack.amount)}
-                      disabled={processing || ccInsufficient}
-                      className={cn('relative w-full rounded-2xl border p-4 text-left transition-all overflow-hidden bg-gradient-to-br',
-                        pack.gradient, pack.best ? 'border-amber-500/30' : pack.popular ? 'border-pink-500/30' : 'border-border/20',
-                        ccInsufficient && 'opacity-50')}>
-                      {pack.best && <span className="absolute top-2 right-2 text-[9px] font-bold bg-amber-500 text-black px-1.5 py-0.5 rounded-full">Meilleur</span>}
-                      {pack.popular && <span className="absolute top-2 right-2 text-[9px] font-bold bg-pink-500 text-white px-1.5 py-0.5 rounded-full">Populaire</span>}
-                      <div className="flex items-center gap-3">
-                        <span className="text-2xl">{pack.icon}</span>
-                        <div className="flex-1">
-                          <p className="font-bold text-sm">{pack.label}</p>
-                          <p className="text-[10px] text-muted-foreground">
-                            {payMethod === 'cc' ? `${ccCost} CC` : `${(pack.amount * (config?.unitPriceEur ?? 0.50)).toFixed(2)}€`}
-                          </p>
-                        </div>
+                {RECHARGE_PACKS.map((pack) => (
+                  <motion.button key={pack.amount} whileTap={{ scale: 0.97 }}
+                    onClick={() => handleRecharge(pack.amount)}
+                    disabled={processing}
+                    className={cn('relative w-full rounded-2xl border p-4 text-left transition-all overflow-hidden bg-gradient-to-br',
+                      pack.gradient, pack.best ? 'border-amber-500/30' : pack.popular ? 'border-pink-500/30' : 'border-border/20')}>
+                    {pack.best && <span className="absolute top-2 right-2 text-[9px] font-bold bg-amber-500 text-black px-1.5 py-0.5 rounded-full">Meilleur</span>}
+                    {pack.popular && <span className="absolute top-2 right-2 text-[9px] font-bold bg-pink-500 text-white px-1.5 py-0.5 rounded-full">Populaire</span>}
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">{pack.icon}</span>
+                      <div className="flex-1">
+                        <p className="font-bold text-sm">{pack.label}</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {(pack.amount * (config?.unitPriceEur ?? 0.50)).toFixed(2)}€
+                        </p>
                       </div>
-                    </motion.button>
-                  )
-                })}
+                    </div>
+                  </motion.button>
+                ))}
               </div>
             </div>
           )}

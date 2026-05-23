@@ -20,7 +20,7 @@ export function createAdminClient() {
 }
 
 // Singleton for browser usage
-let browserClient: ReturnType<typeof createClient> | null = null
+let browserClient: any = null
 
 export function getBrowserClient() {
   if (!browserClient) {

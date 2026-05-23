@@ -14,7 +14,7 @@ export const LOCALES: { code: Locale; label: string; flag: string }[] = [
 ]
 
 // ===== Translation dictionaries =====
-const dictionaries: Record<Locale, Translations> = { fr, en }
+const dictionaries: Record<Locale, Translations> = { fr, en: en as unknown as Translations }
 
 // ===== Auto-detect locale from browser =====
 function detectLocale(): Locale {

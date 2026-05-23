@@ -9,6 +9,16 @@ export async function GET(req: NextRequest) {
   }
 
   try {
+    // Ensure user exists first
+    const userExists = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true },
+    })
+
+    if (!userExists) {
+      return NextResponse.json({ error: 'Utilisateur non trouvé' }, { status: 404 })
+    }
+
     // Upsert wallet — auto-create if doesn't exist
     let wallet = await prisma.foneLoveWallet.findUnique({
       where: { userId },

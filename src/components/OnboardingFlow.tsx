@@ -92,6 +92,32 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
       }))
     }
   }, [currentUser])
+
+  // Détection automatique du pays de l'utilisateur
+  useEffect(() => {
+    try {
+      const locale = Intl.DateTimeFormat().resolvedOptions().locale
+      const regionMatch = locale.match(/-([A-Z]{2})$/i)
+      if (regionMatch) {
+        const code = regionMatch[1].toUpperCase()
+        const country = getCountryByCode(code)
+        if (country) {
+          setFormData(prev => {
+            if (prev.countryCode === 'FR' && prev.phoneCountryCode === '+33' && !prev.phoneLocal) {
+              return {
+                ...prev,
+                countryCode: code,
+                phoneCountryCode: country.dialCode
+              }
+            }
+            return prev
+          })
+        }
+      }
+    } catch (e) {
+      // Ignore si la détection échoue
+    }
+  }, [])
   const [direction, setDirection] = useState(1)
 
   const totalSteps = 8
@@ -247,7 +273,7 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
   }
 
   return (
-    <div className="flex h-dvh flex-col bg-background overflow-hidden">
+    <div className="flex h-dvh flex-col bg-background overflow-hidden relative">
       {/* Progress bar */}
       <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm px-4 pt-4 pb-2 safe-area-top">
         <div className="flex items-center gap-3 mb-2">
@@ -262,7 +288,7 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
       </div>
 
       {/* Step content */}
-      <div className="flex-1 overflow-y-auto px-4 pb-40">
+      <div className="flex-1 overflow-y-auto px-4 pb-48">
         <AnimatePresence mode="wait" custom={direction}>
           <motion.div
             key={step}
@@ -296,14 +322,24 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="birthDate">{t('onboard.birthDate')}</Label>
-                    <Input
-                      id="birthDate"
-                      type="date"
-                      value={formData.birthDate}
-                      onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })}
-                      className="mt-1.5 text-base"
-                    />
+                    <Label htmlFor="age">{t('onboard.age') || 'Quel âge as-tu ?'}</Label>
+                    <select
+                      id="age"
+                      value={formData.birthDate ? new Date().getFullYear() - new Date(formData.birthDate).getFullYear() : ''}
+                      onChange={(e) => {
+                        const age = parseInt(e.target.value);
+                        if (!isNaN(age)) {
+                          const year = new Date().getFullYear() - age;
+                          setFormData({ ...formData, birthDate: `${year}-01-01` });
+                        }
+                      }}
+                      className="mt-1.5 flex h-14 w-full items-center justify-between rounded-xl border-2 border-input bg-background px-4 py-3 text-base ring-offset-background transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <option value="" disabled>{t('onboard.selectAge') || 'Sélectionne ton âge'}</option>
+                      {Array.from({ length: 82 }, (_, i) => i + 18).map(age => (
+                        <option key={age} value={age}>{age} ans</option>
+                      ))}
+                    </select>
                   </div>
                   <div>
                     <Label>{t('onboard.gender')}</Label>
@@ -530,17 +566,6 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
                   })}
                 </div>
 
-                {isUploadingPhotos && (
-                   <motion.div 
-                     initial={{ opacity: 0, y: 10 }}
-                     animate={{ opacity: 1, y: 0 }}
-                     className="flex justify-center items-center gap-2 text-primary font-medium bg-primary/5 p-3 rounded-xl border border-primary/20"
-                   >
-                     <div className="size-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-                     <span>Chargement de ta photo... ⏳</span>
-                   </motion.div>
-                )}
-
                 <p className="text-center text-xs text-muted-foreground">{t('onboard.photosHintReal') || "Appuie sur un carré pour ajouter une vraie photo"}</p>
               </div>
             )}
@@ -701,7 +726,7 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
                     className="flex items-center justify-center gap-2 text-green-500 py-4 bg-green-500/5 rounded-2xl border border-green-500/20"
                   >
                     <CheckCircle className="size-5" />
-                    <span className="font-bold">Numéro prêt !</span>
+                    <span className="font-bold">{t('onboard.phoneReady')}</span>
                   </motion.div>
                 )}
 
@@ -742,23 +767,50 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
         </AnimatePresence>
       </div>
 
+      {/* Persistent Upload Loading State */}
+      <AnimatePresence>
+        {isUploadingPhotos && (
+          <motion.div
+            initial={{ opacity: 0, y: -20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.95 }}
+            className="fixed top-20 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-3 bg-background/95 backdrop-blur-xl px-6 py-4 rounded-full shadow-2xl border-2 border-primary/30 w-max max-w-[90vw]"
+          >
+            <div className="relative flex items-center justify-center shrink-0">
+              <div className="absolute inset-0 rounded-full border-4 border-primary/20"></div>
+              <div className="size-6 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+            </div>
+            <span className="font-bold text-foreground text-sm truncate">
+              {t('onboard.uploadingPhoto') || 'Ajout de ta photo en cours...'}
+            </span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Bottom action - Ultra-accessible */}
-      <div className="shrink-0 bg-background/95 backdrop-blur-sm px-6 pt-3 pb-6 space-y-3 shadow-[0_-4px_10px_rgba(0,0,0,0.05)]" style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 1.5rem)' }}>
+      <div className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-xl px-6 pt-4 pb-6 space-y-3 shadow-[0_-10px_40px_rgba(0,0,0,0.1)] border-t border-border/50" style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 1.5rem)' }}>
         {step < totalSteps - 1 ? (
           <>
             <Button
               size="xl"
-              className="w-full rounded-2xl bg-gradient-to-r from-primary to-pink-500 text-white shadow-xl"
+              className={cn(
+                "w-full rounded-2xl text-white shadow-xl transition-all duration-300 relative overflow-hidden",
+                isStepValid(step) 
+                  ? "bg-gradient-to-r from-primary to-pink-500 hover:shadow-primary/25 hover:scale-[1.02] active:scale-95" 
+                  : "bg-muted-foreground/20 text-muted-foreground opacity-70 cursor-not-allowed"
+              )}
               onClick={nextStep}
               disabled={!isStepValid(step)}
             >
-              <span className="text-xl font-black">{t('onboard.continue')}</span> <ChevronRight className="ml-1 size-6" />
+              <span className="text-xl font-black relative z-10 flex items-center justify-center gap-1">
+                {t('onboard.continue')} <ChevronRight className="size-6" />
+              </span>
             </Button>
             
             {/* Validation hints with simplified language */}
             {step === 0 && (!formData.firstName || !formData.gender) && (
               <p className="text-center text-sm font-medium text-primary animate-pulse">
-                👇 Écris ton prénom pour continuer
+                👇 {t('onboard.fillNameGender')}
               </p>
             )}
 
@@ -777,14 +829,19 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
                 nextStep()
               }}
             >
-              Plus tard ⏭️
+              {t('onboard.skipStep')} ⏭️
             </Button>
           </>
         ) : (
           <>
             <Button
               size="xl"
-              className="w-full rounded-2xl bg-gradient-to-r from-primary to-pink-500 text-white shadow-xl"
+              className={cn(
+                "w-full rounded-2xl text-white shadow-xl transition-all duration-300",
+                (config.requirePhoneVerification ? formData.otp === '1234' : formData.phoneLocal.replace(/\s/g, '').length >= 6)
+                  ? "bg-gradient-to-r from-primary to-pink-500 hover:shadow-primary/25 hover:scale-[1.02] active:scale-95"
+                  : "bg-muted-foreground/20 text-muted-foreground opacity-70 cursor-not-allowed"
+              )}
               onClick={handleComplete}
               disabled={config.requirePhoneVerification ? formData.otp !== '1234' : formData.phoneLocal.replace(/\s/g, '').length < 6}
             >
@@ -799,7 +856,7 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
                   setTimeout(handleComplete, 100)
                 }}
               >
-                Passer la vérification
+                {t('onboard.skipVerify')}
               </Button>
             )}
           </>

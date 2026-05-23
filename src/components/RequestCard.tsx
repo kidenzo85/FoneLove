@@ -205,11 +205,6 @@ export default function RequestCard({ request, type, onAccept, onDecline, onView
                       <Clock className="size-2.5" /> {t('requestCard.pending')}
                     </motion.div>
                   )}
-                  {request.status === 'accepted' && (
-                    <div className="flex items-center gap-1 text-[10px] text-green-500">
-                      <Check className="size-2.5" /> {t('requestCard.accepted')}
-                    </div>
-                  )}
                   {request.status === 'declined' && (
                     <div className="flex items-center gap-1 text-[10px] text-red-500">
                       <X className="size-2.5" /> {t('requestCard.declined')}

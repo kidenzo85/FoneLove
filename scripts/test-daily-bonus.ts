@@ -10,8 +10,10 @@ async function runTest() {
     console.log('1. Création d\'un utilisateur de test...');
     testUser = await prisma.user.create({
       data: {
-        phoneNumber: '+33600000001',
-        deviceType: 'ios',
+        phone: '+33600000001',
+        email: 'test-daily-bonus@test.com',
+        password: 'password',
+        firstName: 'TestUser',
       },
     });
     console.log('✅ Utilisateur créé:', testUser.id);

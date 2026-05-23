@@ -160,6 +160,30 @@ export async function POST(req: NextRequest) {
       select: { firstName: true },
     })
 
+    // Send push notification and save in-app notification asynchronously
+    if (sender) {
+      // 1. Save in-app notification
+      prisma.appNotification.create({
+        data: {
+          userId: receiverId,
+          type: 'fonelove_received',
+          title: '🎁 FoneLove reçu !',
+          body: `${sender.firstName} t'a envoyé ${amount} FoneLove ! ${message ? `"${message}"` : ''}`,
+          url: '/?tab=messages',
+        }
+      }).catch(err => console.error('[Gifts API] AppNotification create failed:', err))
+
+      // 2. Send Push
+      import('@/lib/push-service').then(({ sendPushToUser }) => {
+        sendPushToUser(receiverId, {
+          title: '🎁 FoneLove reçu !',
+          body: `${sender.firstName} t'a envoyé ${amount} FoneLove ! ${message ? `"${message}"` : ''}`,
+          type: 'message',
+          url: `/?tab=messages`
+        })
+      }).catch(err => console.error('[Gifts API] Push trigger failed:', err))
+    }
+
     return NextResponse.json({
       success: true,
       gift: {

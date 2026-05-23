@@ -17,7 +17,6 @@ import {
   type PPPGroup,
 } from '@/lib/currency-constants'
 import {
-  PACKS,
   EURO_PER_CC,
   type PackType,
 } from '@/lib/connectcoin-constants'
@@ -68,11 +67,14 @@ interface CurrencyState {
 
   // Computed pack prices (re-calculated when currency/rate changes)
   packPrices: PackLocalPrice[]
+  // Raw packs from DB
+  rawPacks: any[]
 
   // Actions — appellent directement les Edge Functions Supabase via supabase-credits.ts
   detectCurrency: () => Promise<void>
   setCurrency: (code: string, countryCode?: string) => void
   fetchRates: () => Promise<void>
+  fetchPacks: () => Promise<void>
   refreshPackPrices: () => void
 
   // Utility
@@ -102,6 +104,7 @@ export const useCurrencyStore = create<CurrencyState>()(
       isDetecting: false,
       isFetchingRates: false,
       packPrices: [],
+      rawPacks: [],
 
       detectCurrency: async () => {
         set({ isDetecting: true })
@@ -122,7 +125,8 @@ export const useCurrencyStore = create<CurrencyState>()(
         }
         set({ isDetecting: false })
 
-        // After detection, fetch live rates
+        // After detection, fetch live rates and packs
+        await get().fetchPacks()
         await get().fetchRates()
         get().refreshPackPrices()
       },
@@ -174,31 +178,53 @@ export const useCurrencyStore = create<CurrencyState>()(
         set({ isFetchingRates: false })
       },
 
+      fetchPacks: async () => {
+        try {
+          const res = await fetch('/api/packs')
+          if (res.ok) {
+            const data = await res.json()
+            if (data.packs) {
+              set({ rawPacks: data.packs })
+            }
+          }
+        } catch (err) {
+          console.error('Error fetching packs:', err)
+        }
+      },
+
       refreshPackPrices: () => {
-        const { currencyCode, countryCode, exchangeRate, pppGroup } = get()
+        const { currencyCode, countryCode, exchangeRate, pppGroup, rawPacks } = get()
         const pppMultiplier = PPP_MULTIPLIER[pppGroup]
         const pppDiscount = Math.round((1 - pppMultiplier) * 100)
         const isPPPAdjusted = pppDiscount > 0
 
-        const packPrices = PACKS.map((pack) => {
-          const { formatted, raw } = getPackLocalPrice(pack.price, currencyCode, exchangeRate)
+        // Si aucun pack n'est chargé, on ne fait rien
+        if (!rawPacks || rawPacks.length === 0) return;
+
+        // Filtrer uniquement les packs CC
+        const ccPacks = rawPacks.filter(p => p.currency === 'CC')
+
+        const packPrices = ccPacks.map((pack) => {
+          const packPriceEur = pack.priceEur ?? 0
+          const { formatted, raw } = getPackLocalPrice(packPriceEur, currencyCode, exchangeRate, countryCode)
+          const totalCC = pack.amount + pack.bonusAmount
           const pricePerCC = getPricePerCC(
-            pack.price / (pack.cc + pack.bonusCC),
+            packPriceEur / (totalCC > 0 ? totalCC : 1),
             currencyCode,
             exchangeRate,
             countryCode
           )
 
           return {
-            type: pack.type,
+            type: pack.packKey as PackType,
             name: pack.name,
-            cc: pack.cc,
-            bonusCC: pack.bonusCC,
+            cc: pack.amount,
+            bonusCC: pack.bonusAmount,
             priceFormatted: formatted,
             pricePerCCFormatted: pricePerCC,
-            bonusText: pack.bonusText,
-            icon: pack.icon,
-            gradient: PACK_GRADIENTS[pack.type],
+            bonusText: pack.bonusText || '',
+            icon: pack.icon || '✨',
+            gradient: PACK_GRADIENTS[pack.packKey as PackType] || 'from-violet-500/20 to-purple-500/20',
             rawLocalPrice: raw,
             pppAdjusted: isPPPAdjusted,
             pppDiscount,

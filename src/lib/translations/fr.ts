@@ -336,7 +336,9 @@ const fr = {
     firstName: 'Prénom',
     firstNamePlaceholder: 'Ton prénom',
     birthDate: 'Date de naissance',
-    gender: 'Genre',
+    age: 'Quel âge as-tu ?',
+    selectAge: 'Sélectionne ton âge',
+    gender: 'Tu es...',
     male: '👨 Homme',
     female: '👩 Femme',
     otherGender: '✨ Autre',
@@ -607,6 +609,15 @@ const fr = {
     incognitoMode: 'Mode incognito',
     unlimitedMessages: 'Messages illimités',
     seeVisitors: 'Voir qui t\'a visité',
+  },
+
+  // === Loading Screen ===
+  loading: {
+    status1: 'Allumage du signal amoureux...',
+    status2: 'Synchronisation des cœurs...',
+    status3: 'Recherche de profils...',
+    status4: 'Finalisation de la connexion...',
+    status5: 'Prêt ! Lancement de Fonelove...',
   },
 } as const
 

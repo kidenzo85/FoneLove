@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Phone, Heart, Download, X } from "lucide-react"
+import { registerServiceWorker } from "./PWAProvider"
 
 // Types pour BeforeInstallPromptEvent
 interface BeforeInstallPromptEvent extends Event {
@@ -21,6 +22,9 @@ export default function InstallPrompt() {
   const [isStandalone, setIsStandalone] = useState(false)
 
   useEffect(() => {
+    // 1. Enregistrer le Service Worker pour le cache et les Notifications Push
+    registerServiceWorker()
+
     // Vérifier si l'app est déjà installée
     const isPwa = window.matchMedia("(display-mode: standalone)").matches || 
                  (window.navigator as any).standalone === true

@@ -16,6 +16,11 @@ export async function GET(req: NextRequest) {
           photos: { orderBy: { position: 'asc' } },
           prompts: true,
           badges: true,
+          receivedRequests: userId ? {
+            where: {
+              senderId: userId,
+            },
+          } : false,
         },
       })
 
@@ -29,10 +34,8 @@ export async function GET(req: NextRequest) {
     const cursor = searchParams.get('cursor')
     const limit = parseInt(searchParams.get('limit') || '20')
 
-    // Browse profiles (exclude current user, only active & not paused)
-    const users = await prisma.user.findMany({
-      take: limit,
-      ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+    // Browse profiles (exclude current user, only active & not paused, exclude accepted requests)
+    const allUsers = await prisma.user.findMany({
       where: {
         isActive: true,
         isPaused: false,
@@ -49,7 +52,7 @@ export async function GET(req: NextRequest) {
               receivedRequests: {
                 some: {
                   senderId: userId,
-                  status: { in: ['pending', 'accepted'] }
+                  status: 'accepted'
                 }
               }
             }
@@ -61,16 +64,67 @@ export async function GET(req: NextRequest) {
         photos: { orderBy: { position: 'asc' } },
         prompts: true,
         badges: true,
-      },
-      orderBy: {
-        createdAt: 'desc', // Show real/new users first
+        activeFeatures: {
+          where: {
+            action: 'boost',
+            expiresAt: { gt: new Date() },
+          },
+        },
+        receivedRequests: userId ? {
+          where: {
+            senderId: userId,
+          },
+        } : false,
       },
     })
 
-    const nextCursor = users.length === limit ? users[users.length - 1].id : null
+    // Sort in-memory:
+    // 1. Pushed to bottom if requestStatus is 'pending' or 'declined'
+    // 2. Premium/boosted users first
+    // 3. Sorted by profileScore descending
+    const sortedUsers = [...allUsers].sort((a: any, b: any) => {
+      const aBoosted = a.activeFeatures && a.activeFeatures.length > 0
+      const bBoosted = b.activeFeatures && b.activeFeatures.length > 0
+      
+      const aReq = a.receivedRequests && a.receivedRequests[0]
+      const bReq = b.receivedRequests && b.receivedRequests[0]
+      
+      const aHasReq = aReq ? (aReq.status === 'pending' || aReq.status === 'declined') : false
+      const bHasReq = bReq ? (bReq.status === 'pending' || bReq.status === 'declined') : false
+
+      // 1. Push to bottom if request already sent
+      if (aHasReq !== bHasReq) {
+        return aHasReq ? 1 : -1
+      }
+
+      // 2. Boosted first
+      if (aBoosted !== bBoosted) {
+        return aBoosted ? -1 : 1
+      }
+
+      // 3. Profile Score descending
+      if (b.profileScore !== a.profileScore) {
+        return b.profileScore - a.profileScore
+      }
+
+      // 4. Stable order
+      return a.id.localeCompare(b.id)
+    })
+
+    // Perform manual cursor-based pagination
+    let startIndex = 0
+    if (cursor) {
+      const idx = sortedUsers.findIndex(u => u.id === cursor)
+      if (idx !== -1) {
+        startIndex = idx + 1
+      }
+    }
+
+    const paginatedUsers = sortedUsers.slice(startIndex, startIndex + limit)
+    const nextCursor = (startIndex + limit < sortedUsers.length) ? paginatedUsers[paginatedUsers.length - 1].id : null
 
     return NextResponse.json({ 
-      profiles: users.map(formatProfile),
+      profiles: paginatedUsers.map(formatProfile),
       nextCursor 
     })
   } catch (error) {
@@ -159,37 +213,8 @@ export async function PUT(req: NextRequest) {
   }
 }
 
-function formatProfile(user: {
-  id: string
-  email: string
-  phone: string
-  firstName: string
-  lastName: string | null
-  birthDate: Date | null
-  gender: string | null
-  bio: string | null
-  isVerified: boolean
-  isPremium: boolean
-  profileScore: number
-  streakDays: number
-  dailyBoostUsed: boolean
-  lookingFor: string | null
-  astrologicalSign: string | null
-  height: number | null
-  spotifyAnthem: string | null
-  mood: string | null
-  role: string
-  profile: {
-    interests: string | null
-    city: string | null
-    jobTitle: string | null
-    company: string | null
-    education: string | null
-  } | null
-  photos: { id: string; url: string; position: number; isPrimary: boolean }[]
-  prompts: { id: string; question: string; answer: string }[]
-  badges: { id: string; type: string; earnedAt: Date }[]
-}) {
+function formatProfile(user: any) {
+  const req = user.receivedRequests && user.receivedRequests[0]
   return {
     id: user.id,
     email: user.email,
@@ -210,14 +235,16 @@ function formatProfile(user: {
     spotifyAnthem: user.spotifyAnthem,
     mood: user.mood,
     role: user.role,
-    photos: (user.photos || []).map((p) => ({ id: p.id, url: p.url, position: p.position, isPrimary: p.isPrimary })),
-    prompts: (user.prompts || []).map((p) => ({ id: p.id, question: p.question, answer: p.answer })),
-    badges: (user.badges || []).map((b) => ({ id: b.id, type: b.type, earnedAt: b.earnedAt.toISOString() })),
+    photos: (user.photos || []).map((p: any) => ({ id: p.id, url: p.url, position: p.position, isPrimary: p.isPrimary })),
+    prompts: (user.prompts || []).map((p: any) => ({ id: p.id, question: p.question, answer: p.answer })),
+    badges: (user.badges || []).map((b: any) => ({ id: b.id, type: b.type, earnedAt: b.earnedAt.toISOString() })),
     interests: user.profile?.interests ? parseInterests(user.profile.interests) : [],
     city: user.profile?.city ?? null,
     jobTitle: user.profile?.jobTitle ?? null,
     company: user.profile?.company ?? null,
     education: user.profile?.education ?? null,
+    requestStatus: req ? req.status : 'none',
+    requestId: req ? req.id : null,
   }
 }
 

@@ -4,9 +4,10 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-  schemas  = ["public", "auth"]
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+  schemas   = ["public"]
 }
 
 model User {
@@ -68,6 +69,8 @@ model User {
   cosmetics          CosmeticItem[]
   foneLoveWallet     FoneLoveWallet?
   activeFeatures     ActivePremiumFeature[]
+  paymentOrders      PaymentOrder[]
+  appNotifications   AppNotification[]
   @@schema("public")
 }
 
@@ -446,5 +449,89 @@ model ActivePremiumFeature {
 
   @@index([userId, action])
   @@index([expiresAt])
+  @@schema("public")
+}
+
+// ===== CoolPay Payment Orders =====
+
+model PaymentOrder {
+  id                String   @id @default(cuid())
+  userId            String
+  packType          String   // 'decouverte', 'tendance', 'passion', 'flamme'
+  amountXAF         Int      // Montant en FCFA
+  ccAmount          Int      // ConnectCoins à créditer
+  bonusCC           Int      @default(0) // Bonus CC inclus
+  status            String   @default("pending") // pending, processing, success, failed, cancelled, expired
+  coolpayRef        String?  @unique // transaction_ref retourné par CoolPay
+  appTransactionRef String   @unique // Notre référence unique
+  paymentUrl        String?  // URL de paiement CoolPay
+  coolpayStatus     String?  // Statut brut retourné par CoolPay
+  customerPhone     String?
+  customerEmail     String?
+  metadata          String?  // JSON extra data
+  paidAt            DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@index([appTransactionRef])
+  @@schema("public")
+}
+
+// ===== Packs and Tariffs Configuration (Admin-controlled) =====
+
+model PackConfig {
+  id          String   @id @default(cuid())
+  currency    String   // 'CC' or 'FL'
+  packKey     String   @unique // ex: 'decouverte', 'fonelove_5'
+  name        String   // Display name
+  amount      Int      // Base amount (e.g. 30 CC or 5 FL)
+  bonusAmount Int      @default(0) // Bonus amount
+  priceEur    Float?   // Base EUR price (used for CC)
+  priceXaf    Int?     // Specific XAF price (used for FL)
+  bonusText   String?
+  icon        String?
+  freeRose    Int      @default(0)
+  freeTheme   Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
+
+  priceHistory PackPriceHistory[]
+  @@schema("public")
+}
+
+model PackPriceHistory {
+  id          String     @id @default(cuid())
+  packId      String
+  priceEur    Float?
+  priceXaf    Int?
+  startDate   DateTime   @default(now())
+  endDate     DateTime?  // Null if this is the current active price
+  
+  pack        PackConfig @relation(fields: [packId], references: [id], onDelete: Cascade)
+  @@schema("public")
+}
+
+// ===== App Notifications (In-App History) =====
+
+model AppNotification {
+  id          String   @id @default(cuid())
+  userId      String
+  type        String   // 'fonelove_received', 'profile_liked', 'number_request', etc.
+  title       String
+  body        String
+  url         String?  // Optional URL to navigate to
+  image       String?  // Optional image (e.g. sender's avatar)
+  isRead      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@index([createdAt])
   @@schema("public")
 }

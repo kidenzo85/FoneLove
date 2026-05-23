@@ -23,6 +23,72 @@ export async function POST(req: NextRequest) {
     })
 
     if (!existingUser) {
+      // Check if a user with the same email or phone already exists under a different ID
+      const OR: any[] = []
+      if (user.email) OR.push({ email: user.email })
+      if (user.phone) OR.push({ phone: user.phone })
+
+      if (OR.length > 0) {
+        const conflictUser = await prisma.user.findFirst({
+          where: { OR },
+          include: {
+            profile: true,
+            photos: { orderBy: { position: 'asc' } },
+            prompts: true,
+            badges: true,
+          }
+        })
+
+        if (conflictUser) {
+          console.log(`Conflict user found: existing user with email/phone has ID ${conflictUser.id} but sync request has ID ${user.id}`)
+          
+          let interests = []
+          try {
+            if (conflictUser.profile?.interests) {
+              interests = JSON.parse(conflictUser.profile.interests)
+            }
+          } catch (e) {
+            console.error('Error parsing profile interests:', e)
+          }
+
+          const correctUser = {
+            id: conflictUser.id,
+            email: conflictUser.email,
+            phone: conflictUser.phone,
+            firstName: conflictUser.firstName,
+            lastName: conflictUser.lastName || undefined,
+            birthDate: conflictUser.birthDate ? conflictUser.birthDate.toISOString() : undefined,
+            gender: conflictUser.gender || undefined,
+            bio: conflictUser.bio || undefined,
+            isVerified: conflictUser.isVerified,
+            isPremium: conflictUser.isPremium,
+            profileScore: conflictUser.profileScore,
+            streakDays: conflictUser.streakDays,
+            dailyBoostUsed: conflictUser.dailyBoostUsed,
+            lookingFor: conflictUser.lookingFor || undefined,
+            lookingForGender: conflictUser.lookingForGender || undefined,
+            city: conflictUser.city || undefined,
+            countryCode: conflictUser.countryCode || undefined,
+            astrologicalSign: conflictUser.astrologicalSign || undefined,
+            height: conflictUser.height || undefined,
+            spotifyAnthem: conflictUser.spotifyAnthem || undefined,
+            mood: conflictUser.mood || undefined,
+            role: conflictUser.role,
+            onboardingDone: conflictUser.profile?.onboardingDone ?? false,
+            photos: (conflictUser.photos || []).map((p: any) => ({ id: p.id, url: p.url, position: p.position, isPrimary: p.isPrimary })),
+            prompts: (conflictUser.prompts || []).map((p: any) => ({ id: p.id, question: p.question, answer: p.answer })),
+            badges: (conflictUser.badges || []).map((b: any) => ({ id: b.id, type: b.type, earnedAt: b.earnedAt.toISOString() })),
+            interests,
+          }
+
+          return NextResponse.json({
+            error: 'ID_MISMATCH',
+            message: 'User exists with a different ID',
+            correctUser
+          }, { status: 409 })
+        }
+      }
+
       // Create user if not found (should be rare if register/verify-otp worked)
       await prisma.user.create({
         data: {

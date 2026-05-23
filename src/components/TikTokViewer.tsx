@@ -10,7 +10,7 @@ import {
   Heart, Phone, MapPin, Shield, Star, Share2,
   MessageCircle, X, ChevronUp, Sparkles, Briefcase,
   GraduationCap, Users, RotateCcw,
-  Disc3,
+  Disc3, Clock as ClockIcon, XCircle,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { type ProfileWithDetails, useAppStore } from '@/lib/store'
@@ -109,7 +109,7 @@ function FloatingParticles() {
 
 function TutorialParticles() {
   const items = useMemo(() => {
-    const arr = []
+    const arr: any[] = []
     for (let i = 0; i < 20; i++) {
       arr.push({
         id: i,
@@ -588,9 +588,12 @@ function ProfileInfoOverlay({ profile, onView }: { profile: ProfileWithDetails; 
         {profile.mood && (
           <motion.p
             className="text-sm font-medium text-primary"
-            animate={{ opacity: [0.7, 1, 0.7] }}
-            transition={{ repeat: Infinity, duration: 3 }}
-            {...stagger(0.15)}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: [0.7, 1, 0.7], y: 0 }}
+            transition={{
+              y: { delay: 0.15, type: 'spring', stiffness: 300, damping: 25 },
+              opacity: { repeat: Infinity, duration: 3, delay: 0.15 }
+            }}
           >
             {profile.mood}
           </motion.p>
@@ -686,6 +689,37 @@ function ProfileInfoOverlay({ profile, onView }: { profile: ProfileWithDetails; 
             </div>
           </motion.div>
         )}
+
+        {/* Verification / status banner */}
+        {profile.requestStatus && profile.requestStatus !== 'none' && (
+          <motion.div
+            className={cn(
+              "flex items-center gap-2.5 rounded-xl px-3 py-2 mt-2 backdrop-blur-sm border",
+              profile.requestStatus === 'pending'
+                ? "bg-amber-500/20 border-amber-500/30 text-amber-300"
+                : "bg-red-500/20 border-red-500/30 text-red-300"
+            )}
+            {...stagger(0.6)}
+          >
+            {profile.requestStatus === 'pending' ? (
+              <>
+                <ClockIcon className="size-4 shrink-0 animate-pulse text-amber-400" />
+                <div className="text-left">
+                  <p className="font-bold text-xs">📱 Demande envoyée</p>
+                  <p className="text-[10px] opacity-80 leading-tight">Tu as demandé son numéro. En attente de réponse.</p>
+                </div>
+              </>
+            ) : (
+              <>
+                <XCircle className="size-4 shrink-0 text-red-400" />
+                <div className="text-left">
+                  <p className="font-bold text-xs">❌ Demande refusée</p>
+                  <p className="text-[10px] opacity-80 leading-tight">Demande refusée. Tu peux réessayer si tu veux.</p>
+                </div>
+              </>
+            )}
+          </motion.div>
+        )}
       </div>
     </div>
   )
@@ -706,6 +740,7 @@ function SideActionBar({
   likeCount,
   requestCount,
   undoCount = 0,
+  isUndoOnly,
 }: {
   profile: ProfileWithDetails
   onLike: () => void
@@ -717,6 +752,7 @@ function SideActionBar({
   likeCount: number
   requestCount: number
   undoCount?: number
+  isUndoOnly?: boolean
 }) {
   const { t } = useT()
   const [likeActive, setLikeActive] = useState(false)
@@ -748,7 +784,9 @@ function SideActionBar({
 
   return (
     <div className="absolute right-3 top-1/2 -translate-y-1/2 z-20 w-20 flex flex-col items-center gap-5">
-      <motion.button className="flex flex-col items-center gap-1 min-h-[44px] w-20" whileTap={{ scale: 0.75 }} onClick={handleLike}>
+      {!isUndoOnly && (
+        <>
+          <motion.button className="flex flex-col items-center gap-1 min-h-[44px] w-20" whileTap={{ scale: 0.75 }} onClick={handleLike}>
         <motion.div
           className={cn(
             'flex h-12 w-12 items-center justify-center rounded-full backdrop-blur-sm transition-colors duration-300',
@@ -785,11 +823,22 @@ function SideActionBar({
         variant="side"
       />
 
-      <motion.button className="flex flex-col items-center gap-1 min-h-[44px] w-20" whileTap={{ scale: 0.75 }} onClick={onRequest}>
+      <motion.button 
+        className="flex flex-col items-center gap-1 min-h-[44px] w-20" 
+        whileTap={{ scale: 0.75 }} 
+        onClick={onRequest}
+      >
         <motion.div
-          className="relative flex h-12 w-12 items-center justify-center rounded-full shadow-lg shadow-primary/30 overflow-hidden"
-          style={{ background: 'linear-gradient(135deg, #ec4899, #f43f5e, #f59e0b)' }}
-          animate={{
+          className={cn(
+            "relative flex h-12 w-12 items-center justify-center rounded-full shadow-lg overflow-hidden",
+            profile.requestStatus === 'pending'
+              ? "bg-amber-500 border border-amber-400"
+              : profile.requestStatus === 'declined'
+              ? "bg-neutral-600 border border-neutral-500"
+              : ""
+          )}
+          style={profile.requestStatus && profile.requestStatus !== 'none' ? {} : { background: 'linear-gradient(135deg, #ec4899, #f43f5e, #f59e0b)' }}
+          animate={profile.requestStatus && profile.requestStatus !== 'none' ? {} : {
             boxShadow: [
               '0 0 0 0 rgba(236,72,153,0.3)',
               '0 0 20px 8px rgba(236,72,153,0.15)',
@@ -799,13 +848,20 @@ function SideActionBar({
           }}
           transition={{ repeat: Infinity, duration: 2 }}
         >
-          {/* Subtle Shimmer */}
-          <motion.div
-            className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent"
-            animate={{ x: ['-200%', '200%'] }}
-            transition={{ duration: 3, repeat: Infinity, ease: 'linear', repeatDelay: 2 }}
-          />
-          <Phone className="size-6 text-white relative z-10" />
+          {profile.requestStatus && profile.requestStatus !== 'none' ? null : (
+            <motion.div
+              className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent"
+              animate={{ x: ['-200%', '200%'] }}
+              transition={{ duration: 3, repeat: Infinity, ease: 'linear', repeatDelay: 2 }}
+            />
+          )}
+          {profile.requestStatus === 'pending' ? (
+            <ClockIcon className="size-6 text-white relative z-10 animate-pulse" />
+          ) : profile.requestStatus === 'declined' ? (
+            <XCircle className="size-6 text-white relative z-10" />
+          ) : (
+            <Phone className="size-6 text-white relative z-10" />
+          )}
         </motion.div>
         <motion.span
           className="text-[10px] text-white/80 font-bold uppercase tracking-tight text-center w-full block"
@@ -813,9 +869,17 @@ function SideActionBar({
           initial={{ y: -8, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
         >
-          {requestCount > 0 ? requestCount : t('tiktok.number')}
+          {profile.requestStatus === 'pending'
+            ? 'En attente'
+            : profile.requestStatus === 'declined'
+            ? 'Refusé'
+            : requestCount > 0
+            ? requestCount
+            : t('tiktok.number')}
         </motion.span>
       </motion.button>
+        </>
+      )}
 
       {canUndo && (
         <motion.button
@@ -1510,6 +1574,7 @@ export default function TikTokViewer({
               undoCount={inventory.undoCount}
               likeCount={0}
               requestCount={0}
+              isUndoOnly={true}
             />
           </div>
         )}

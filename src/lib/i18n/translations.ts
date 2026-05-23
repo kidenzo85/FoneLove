@@ -271,12 +271,12 @@ export const translations: Record<Locale, Record<string, string>> = {
     'gift.surprise': 'Surprise !',
     'gift.youGot': 'Tu as reçu +{n} CC',
     'gift.andAlso': 'Et en plus...',
-    'gift.giftToShare': 'Tu as un cadeau de {n} pièces à offrir à quelqu\'un que tu connais !',
+    'gift.giftToShare': 'Tu as un cadeau de {n} ConnectCoins à offrir à quelqu\'un que tu connais !',
     'gift.sendWhatsApp': '💬 Envoyer sur WhatsApp',
     'gift.sendSMS': '📱 Envoyer par SMS',
     'gift.share': '🎁 Offrir le cadeau',
     'gift.noThanks': 'Pas maintenant',
-    'gift.shareText': 'Coucou ! Je t\'ai gardé un cadeau de {n} pièces pour essayer Fonelove, la nouvelle appli de rencontre. Appuie ici pour récupérer tes pièces : {url}',
+    'gift.shareText': 'Coucou ! Je t\'ai gardé un cadeau de {n} ConnectCoins pour essayer Fonelove, la nouvelle appli de rencontre. Appuie ici pour les récupérer : {url}',
     'gift.shareTitle': 'Cadeau Fonelove',
     'gift.sent': 'Cadeau envoyé ! Merci 💖',
 
@@ -384,6 +384,8 @@ export const translations: Record<Locale, Record<string, string>> = {
     'onboard.skipStep': 'Passer cette étape',
     'onboard.letsGo': "C'est parti !",
     'onboard.skipVerify': 'Passer la vérification',
+    'onboard.uploadingPhoto': 'Chargement de ta photo... ⏳',
+    'onboard.phoneReady': 'Numéro prêt !',
 
     // ===== Profile Editor =====
     'editor.photos': 'Photos',
@@ -685,6 +687,13 @@ export const translations: Record<Locale, Record<string, string>> = {
 
     // ===== Date locale =====
     'locale': 'fr-FR',
+
+    // ===== Loading Screen =====
+    'loading.status1': 'Allumage du signal amoureux...',
+    'loading.status2': 'Synchronisation des cœurs...',
+    'loading.status3': 'Recherche de profils...',
+    'loading.status4': 'Finalisation de la connexion...',
+    'loading.status5': 'Prêt ! Lancement de Fonelove...',
   },
 
   en: {
@@ -1070,6 +1079,8 @@ export const translations: Record<Locale, Record<string, string>> = {
     'onboard.skipStep': 'Skip this step',
     'onboard.letsGo': "Let's go!",
     'onboard.skipVerify': 'Skip verification',
+    'onboard.uploadingPhoto': 'Uploading your photo... ⏳',
+    'onboard.phoneReady': 'Number ready!',
 
     // ===== Profile Editor =====
     'editor.photos': 'Photos',
@@ -1371,5 +1382,12 @@ export const translations: Record<Locale, Record<string, string>> = {
 
     // ===== Date locale =====
     'locale': 'en-US',
+
+    // ===== Loading Screen =====
+    'loading.status1': 'Igniting the love signal...',
+    'loading.status2': 'Synchronizing hearts...',
+    'loading.status3': 'Searching profiles...',
+    'loading.status4': 'Finalizing connection...',
+    'loading.status5': 'Ready! Launching Fonelove...',
   },
 }

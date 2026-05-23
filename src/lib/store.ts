@@ -34,6 +34,8 @@ export interface UserProfile {
   phoneType?: 'whatsapp' | 'direct' | 'both'
   otherPhones?: PhoneItem[]
   role?: 'user' | 'admin' | 'super_admin'
+  requestStatus?: 'pending' | 'accepted' | 'declined' | 'none'
+  requestId?: string | null
 }
 
 export interface PhoneItem {
@@ -211,6 +213,7 @@ interface AppState {
   setIsLoadingMore: (val: boolean) => void
   appendProfiles: (profiles: ProfileWithDetails[]) => void
   removeProfile: (id: string) => void
+  updateProfileRequestStatus: (id: string, status: 'pending' | 'accepted' | 'declined') => void
   logout: () => void
 }
 
@@ -295,6 +298,12 @@ export const useAppStore = create<AppState>()(
         set((state) => ({ profiles: [...state.profiles, ...newProfiles] })),
       removeProfile: (id) =>
         set((state) => ({ profiles: state.profiles.filter((p) => p.id !== id) })),
+      updateProfileRequestStatus: (id, status) =>
+        set((state) => ({
+          profiles: state.profiles.map((p) =>
+            p.id === id ? { ...p, requestStatus: status } : p
+          ),
+        })),
       logout: () =>
         set({
           currentUser: null,

@@ -22,113 +22,115 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Utilisateur introuvable' }, { status: 404 })
     }
 
-    // Get or create wallet
-    let wallet = await prisma.wallet.findUnique({
-      where: { userId },
-    })
-
-    if (!wallet) {
-      wallet = await prisma.wallet.create({
-        data: { userId },
-      })
-    }
-
-    // Check if already claimed today
-    if (wallet.dailyFreeClaimed && wallet.lastFreeClaimAt) {
-      const lastClaim = new Date(wallet.lastFreeClaimAt)
-      const now = new Date()
-      const isSameDay =
-        lastClaim.getFullYear() === now.getFullYear() &&
-        lastClaim.getMonth() === now.getMonth() &&
-        lastClaim.getDate() === now.getDate()
-
-      if (isSameDay) {
-        return NextResponse.json(
-          { error: 'already_claimed', message: 'CC quotidiens déjà réclamés aujourd\'hui' },
-          { status: 200 }
-        )
-      }
-    }
-
-    // Get or create daily streak
-    let dailyStreak = await prisma.dailyStreak.findUnique({
-      where: { userId },
-    })
-
-    if (!dailyStreak) {
-      dailyStreak = await prisma.dailyStreak.create({
-        data: { userId },
-      })
-    }
-
-    // Calculate streak
     const now = new Date()
-    const lastCheckIn = dailyStreak.lastCheckIn
 
-    let newStreak = dailyStreak.currentStreak
-    if (lastCheckIn) {
-      const lastDate = new Date(lastCheckIn)
-      const diffMs = now.getTime() - lastDate.getTime()
-      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+    // Interactive transaction to group reads/writes and ensure atomicity/performance
+    const result = await prisma.$transaction(async (tx) => {
+      // Get or create wallet
+      let wallet = await tx.wallet.findUnique({ where: { userId } })
+      if (!wallet) {
+        wallet = await tx.wallet.create({ data: { userId } })
+      }
 
-      if (diffDays === 1) {
-        // Consecutive day
-        newStreak = dailyStreak.currentStreak + 1
-      } else if (diffDays > 1) {
-        // Streak broken
+      // Check if already claimed today
+      if (wallet.dailyFreeClaimed && wallet.lastFreeClaimAt) {
+        const lastClaim = new Date(wallet.lastFreeClaimAt)
+        const isSameDay =
+          lastClaim.getFullYear() === now.getFullYear() &&
+          lastClaim.getMonth() === now.getMonth() &&
+          lastClaim.getDate() === now.getDate()
+
+        if (isSameDay) {
+          return { alreadyClaimed: true }
+        }
+      }
+
+      // Get or create daily streak
+      let dailyStreak = await tx.dailyStreak.findUnique({ where: { userId } })
+      if (!dailyStreak) {
+        dailyStreak = await tx.dailyStreak.create({ data: { userId } })
+      }
+
+      // Calculate streak
+      const lastCheckIn = dailyStreak.lastCheckIn
+      let newStreak = dailyStreak.currentStreak
+
+      if (lastCheckIn) {
+        const lastDate = new Date(lastCheckIn)
+        const diffMs = now.getTime() - lastDate.getTime()
+        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+
+        if (diffDays === 1) {
+          newStreak = dailyStreak.currentStreak + 1
+        } else if (diffDays > 1) {
+          newStreak = 1
+        }
+      } else {
         newStreak = 1
       }
-      // If diffDays === 0, same day check-in, keep current streak
-    } else {
-      // First ever check-in
-      newStreak = 1
+
+      const streakBonus = Math.min(newStreak - 1, MAX_STREAK_BONUS)
+      const totalDailyFree = BASE_DAILY_FREE + Math.max(0, streakBonus)
+
+      // Update wallet
+      const updatedWallet = await tx.wallet.update({
+        where: { id: wallet.id },
+        data: {
+          balance: { increment: totalDailyFree },
+          totalEarned: { increment: totalDailyFree },
+          dailyFreeClaimed: true,
+          dailyFreeStreak: newStreak,
+          lastFreeClaimAt: now,
+        },
+      })
+
+      // Update daily streak
+      await tx.dailyStreak.update({
+        where: { id: dailyStreak.id },
+        data: {
+          currentStreak: newStreak,
+          longestStreak: Math.max(newStreak, dailyStreak.longestStreak),
+          lastCheckIn: now,
+          todayBonusClaimed: true,
+        },
+      })
+
+      // Create transaction record
+      await tx.transaction.create({
+        data: {
+          walletId: wallet.id,
+          type: newStreak > 1 ? 'earn_streak' : 'earn_free',
+          amount: totalDailyFree,
+          action: null,
+          description: `CC quotidiens gratuits: ${BASE_DAILY_FREE} CC de base${streakBonus > 0 ? ` + ${streakBonus} CC bonus streak (${newStreak} jours)` : ''}`,
+          metadata: JSON.stringify({
+            baseAmount: BASE_DAILY_FREE,
+            streakBonus,
+            streakDays: newStreak,
+          }),
+        },
+      })
+
+      return {
+        updatedWallet,
+        newStreak,
+        streakBonus,
+        totalDailyFree
+      }
+    })
+
+    if ('alreadyClaimed' in result) {
+      return NextResponse.json(
+        { error: 'already_claimed', message: 'CC quotidiens déjà réclamés aujourd\'hui' },
+        { status: 200 }
+      )
     }
 
-    const streakBonus = Math.min(newStreak - 1, MAX_STREAK_BONUS)
-    const totalDailyFree = BASE_DAILY_FREE + Math.max(0, streakBonus)
-
-    // Update wallet
-    const updatedWallet = await prisma.wallet.update({
-      where: { id: wallet.id },
-      data: {
-        balance: { increment: totalDailyFree },
-        totalEarned: { increment: totalDailyFree },
-        dailyFreeClaimed: true,
-        dailyFreeStreak: newStreak,
-        lastFreeClaimAt: now,
-      },
-    })
-
-    // Update daily streak
-    await prisma.dailyStreak.update({
-      where: { id: dailyStreak.id },
-      data: {
-        currentStreak: newStreak,
-        longestStreak: Math.max(newStreak, dailyStreak.longestStreak),
-        lastCheckIn: now,
-        todayBonusClaimed: true,
-      },
-    })
-
-    // Create transaction
-    await prisma.transaction.create({
-      data: {
-        walletId: wallet.id,
-        type: newStreak > 1 ? 'earn_streak' : 'earn_free',
-        amount: totalDailyFree,
-        action: null,
-        description: `CC quotidiens gratuits: ${BASE_DAILY_FREE} CC de base${streakBonus > 0 ? ` + ${streakBonus} CC bonus streak (${newStreak} jours)` : ''}`,
-        metadata: JSON.stringify({
-          baseAmount: BASE_DAILY_FREE,
-          streakBonus,
-          streakDays: newStreak,
-        }),
-      },
-    })
+    const { updatedWallet, newStreak, streakBonus, totalDailyFree } = result
 
     // TODO: Probability and amount can be made configurable from admin panel later
     const hasSharedGift = true
-    const sharedGiftAmount = 50
+    const sharedGiftAmount = 3
 
     return NextResponse.json({
       claimed: true,

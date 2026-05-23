@@ -55,28 +55,14 @@ const DEFAULT_DURATIONS: Record<string, number> = {
   request_animation: 10080, // 7 days
 }
 
-/**
- * Get the admin-configured duration for an action, falling back to defaults.
- */
-async function getActionDuration(action: string): Promise<number> {
-  try {
-    const config = await prisma.premiumActionConfig.findUnique({
-      where: { action },
-    })
-    if (config && config.isEnabled) {
-      return config.durationMinutes
-    }
-  } catch {
-    // Config table might not exist yet — use defaults
-  }
-  return DEFAULT_DURATIONS[action] ?? 1440
-}
+
 
 /**
  * Activate the functional effect of a premium action.
  * All logic is server-side to prevent client manipulation.
  */
 async function activateActionEffect(
+  tx: any,
   userId: string,
   action: string,
   walletId: string,
@@ -89,11 +75,11 @@ async function activateActionEffect(
 
   switch (action) {
     case 'boost': {
-      await prisma.user.update({
+      await tx.user.update({
         where: { id: userId },
         data: { dailyBoostUsed: true },
       })
-      await prisma.wallet.update({
+      await tx.wallet.update({
         where: { id: walletId },
         data: { lastBoostAt: now },
       })
@@ -105,20 +91,20 @@ async function activateActionEffect(
     }
 
     case 'super_request': {
-      await prisma.user.update({
+      const user = await tx.user.update({
         where: { id: userId },
         data: { superRequestsLeft: { increment: 1 } },
+        select: { superRequestsLeft: true }
       })
-      const user = await prisma.user.findUnique({ where: { id: userId }, select: { superRequestsLeft: true } })
       return {
         effect: 'super_request_added',
-        detail: `Tu as maintenant ${user?.superRequestsLeft ?? 1} super demande(s) disponible(s)`,
+        detail: `Tu as maintenant ${user.superRequestsLeft} super demande(s) disponible(s)`,
         expiresAt: expiresAtStr,
       }
     }
 
     case 'extra_request': {
-      await prisma.user.update({
+      await tx.user.update({
         where: { id: userId },
         data: { superRequestsLeft: { increment: 1 } },
       })
@@ -130,7 +116,7 @@ async function activateActionEffect(
     }
 
     case 'ghost_mode': {
-      await prisma.user.update({
+      await tx.user.update({
         where: { id: userId },
         data: { isIncognito: true },
       })
@@ -194,7 +180,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'userId et action sont requis' }, { status: 400 })
     }
 
-    const cost = ACTION_COSTS[action]
+    let cost = ACTION_COSTS[action]
+    let isEnabled = true
+    let durationMinutes = DEFAULT_DURATIONS[action] ?? 1440
+
+    try {
+      const config = await prisma.premiumActionConfig.findUnique({ where: { action } })
+      if (config) {
+        cost = config.costCC
+        isEnabled = config.isEnabled
+        durationMinutes = config.durationMinutes
+      }
+    } catch (err) {
+      console.warn('Could not query PremiumActionConfig, using fallback:', err)
+    }
+
     if (cost === undefined) {
       return NextResponse.json(
         { error: `Action invalide. Actions acceptées: ${Object.keys(ACTION_COSTS).join(', ')}` },
@@ -202,147 +202,151 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Check if action is enabled in admin config
-    try {
-      const config = await prisma.premiumActionConfig.findUnique({ where: { action } })
-      if (config && !config.isEnabled) {
-        return NextResponse.json(
-          { error: 'Cette action est temporairement désactivée' },
-          { status: 400 }
-        )
-      }
-    } catch {
-      // Config not seeded yet — allow by default
-    }
-
-    // Get wallet — server-side balance check
-    const wallet = await prisma.wallet.findUnique({
-      where: { userId },
-    })
-
-    if (!wallet) {
-      return NextResponse.json({ error: 'Portefeuille introuvable.' }, { status: 404 })
-    }
-
-    // SECURITY: Server-side balance validation
-    if (wallet.balance < cost) {
+    if (!isEnabled) {
       return NextResponse.json(
-        { error: `Solde insuffisant. Requis: ${cost} CC, Disponible: ${wallet.balance} CC` },
+        { error: 'Cette action est temporairement désactivée' },
         { status: 400 }
       )
     }
 
-    // Get admin-configured duration
-    const durationMinutes = await getActionDuration(action)
     const now = new Date()
     const expiresAt = new Date(now.getTime() + durationMinutes * 60 * 1000)
 
-    // ===== 1. Record the transaction =====
-    const transaction = await prisma.transaction.create({
-      data: {
-        walletId: wallet.id,
-        type: 'spend',
-        amount: -cost,
-        action,
-        description: `${ACTION_LABELS[action] || action} - ${cost} CC`,
-        metadata: JSON.stringify({
-          ...(metadata || {}),
-          activatedAt: now.toISOString(),
-          expiresAt: expiresAt.toISOString(),
-          durationMinutes,
-        }),
-      },
-    })
-
-    // ===== 2. Create ActivePremiumFeature record =====
-    const activeFeature = await prisma.activePremiumFeature.create({
-      data: {
-        userId,
-        action,
-        activatedAt: now,
-        expiresAt,
-        metadata: metadata ? JSON.stringify(metadata) : null,
-        isConsumed: false,
-      },
-    })
-
-    // ===== 3. Activate the functional effect (server-side) =====
-    let activatedEffect: { effect: string; detail?: string; expiresAt: string } = {
-      effect: 'credits_spent',
-      expiresAt: expiresAt.toISOString(),
-    }
-
-    // For cosmetic purchases, create CosmeticItem record
-    if (COSMETIC_ACTIONS.has(action)) {
-      const cosmeticData: {
-        userId: string
-        type: string
-        isActive: boolean
-        customText?: string
-        colorChoice?: string
-      } = {
-        userId,
-        type: action,
-        isActive: true,
-      }
-
-      // Deactivate other items of the same type
-      await prisma.cosmeticItem.updateMany({
-        where: { userId, type: action, isActive: true },
-        data: { isActive: false },
+    // Run all updates in a single transaction
+    const result = await prisma.$transaction(async (tx) => {
+      // Get wallet — server-side balance check
+      const wallet = await tx.wallet.findUnique({
+        where: { userId },
       })
 
-      // Add custom fields based on metadata
-      if (metadata) {
-        if (metadata.customText && action === 'custom_badge') {
-          cosmeticData.customText = String(metadata.customText).substring(0, 20)
-        }
-        if (metadata.colorChoice && action === 'theme_aura') {
-          cosmeticData.colorChoice = String(metadata.colorChoice)
-        }
+      if (!wallet) {
+        return { status: 404, error: 'Portefeuille introuvable.' }
       }
 
-      await prisma.cosmeticItem.create({
-        data: cosmeticData,
+      // SECURITY: Server-side balance validation
+      if (wallet.balance < cost) {
+        return { status: 400, error: `Solde insuffisant. Requis: ${cost} CC, Disponible: ${wallet.balance} CC` }
+      }
+
+      // ===== 1. Record the transaction =====
+      const transaction = await tx.transaction.create({
+        data: {
+          walletId: wallet.id,
+          type: 'spend',
+          amount: -cost,
+          action,
+          description: `${ACTION_LABELS[action] || action} - ${cost} CC`,
+          metadata: JSON.stringify({
+            ...(metadata || {}),
+            activatedAt: now.toISOString(),
+            expiresAt: expiresAt.toISOString(),
+            durationMinutes,
+          }),
+        },
       })
 
-      activatedEffect = {
-        effect: `cosmetic_${action}_activated`,
-        detail: `${ACTION_LABELS[action]} activé sur ton profil`,
+      // ===== 2. Create ActivePremiumFeature record =====
+      const activeFeature = await tx.activePremiumFeature.create({
+        data: {
+          userId,
+          action,
+          activatedAt: now,
+          expiresAt,
+          metadata: metadata ? JSON.stringify(metadata) : null,
+          isConsumed: false,
+        },
+      })
+
+      // ===== 3. Activate the functional effect (server-side) =====
+      let activatedEffect: { effect: string; detail?: string; expiresAt: string } = {
+        effect: 'credits_spent',
         expiresAt: expiresAt.toISOString(),
       }
-    } else {
-      // Non-cosmetic actions: activate the real functional effect
-      activatedEffect = await activateActionEffect(
-        userId, action, wallet.id, durationMinutes, metadata as Record<string, unknown>
-      )
-    }
 
-    // ===== 4. Debit the wallet =====
-    const updatedWallet = await prisma.wallet.update({
-      where: { id: wallet.id },
-      data: {
-        balance: { decrement: cost },
-        totalSpent: { increment: cost },
-      },
+      // For cosmetic purchases, create CosmeticItem record
+      if (COSMETIC_ACTIONS.has(action)) {
+        const cosmeticData: {
+          userId: string
+          type: string
+          isActive: boolean
+          customText?: string
+          colorChoice?: string
+        } = {
+          userId,
+          type: action,
+          isActive: true,
+        }
+
+        // Deactivate other items of the same type
+        await tx.cosmeticItem.updateMany({
+          where: { userId, type: action, isActive: true },
+          data: { isActive: false },
+        })
+
+        // Add custom fields based on metadata
+        if (metadata) {
+          if (metadata.customText && action === 'custom_badge') {
+            cosmeticData.customText = String(metadata.customText).substring(0, 20)
+          }
+          if (metadata.colorChoice && action === 'theme_aura') {
+            cosmeticData.colorChoice = String(metadata.colorChoice)
+          }
+        }
+
+        await tx.cosmeticItem.create({
+          data: cosmeticData,
+        })
+
+        activatedEffect = {
+          effect: `cosmetic_${action}_activated`,
+          detail: `${ACTION_LABELS[action]} activé sur ton profil`,
+          expiresAt: expiresAt.toISOString(),
+        }
+      } else {
+        // Non-cosmetic actions: activate the real functional effect
+        activatedEffect = await activateActionEffect(
+          tx, userId, action, wallet.id, durationMinutes, metadata as Record<string, unknown>
+        )
+      }
+
+      // ===== 4. Debit the wallet =====
+      const updatedWallet = await tx.wallet.update({
+        where: { id: wallet.id },
+        data: {
+          balance: { decrement: cost },
+          totalSpent: { increment: cost },
+        },
+      })
+      
+      return {
+        status: 200,
+        transaction,
+        activeFeature,
+        activatedEffect,
+        updatedWallet,
+      }
     })
+
+    if ('error' in result) {
+      return NextResponse.json({ error: result.error }, { status: result.status })
+    }
 
     return NextResponse.json({
       success: true,
       transaction: {
-        id: transaction.id,
+        id: result.transaction!.id,
         action,
         amount: -cost,
-        description: transaction.description,
+        description: result.transaction!.description,
       },
-      balance: updatedWallet.balance,
-      activatedEffect,
+      balance: result.updatedWallet!.balance,
+      activatedEffect: result.activatedEffect,
       activeFeature: {
-        id: activeFeature.id,
-        action: activeFeature.action,
-        activatedAt: activeFeature.activatedAt.toISOString(),
-        expiresAt: activeFeature.expiresAt.toISOString(),
-        metadata: activeFeature.metadata,
+        id: result.activeFeature!.id,
+        action: result.activeFeature!.action,
+        activatedAt: result.activeFeature!.activatedAt.toISOString(),
+        expiresAt: result.activeFeature!.expiresAt.toISOString(),
+        metadata: result.activeFeature!.metadata,
       },
     })
   } catch (error) {

@@ -1,9 +1,9 @@
 import { cn } from '@/lib/utils'
 import { type MessageItem } from '@/lib/store'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Phone, Mic, Check, CheckCheck, Gift, Sparkles, Clock } from 'lucide-react'
+import { Phone, Mic, Check, CheckCheck, Gift, Sparkles, Clock, Play, Pause } from 'lucide-react'
 import { useT } from '@/lib/i18n/context'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { usePremiumFeatures } from '@/lib/premium-features-store'
 
 interface MessageBubbleProps {
@@ -17,6 +17,51 @@ export default function MessageBubble({ message, isOwn, showExpiry, onSayThanks 
   const { t, localeStr } = useT()
   const [isOpened, setIsOpened] = useState(false)
   const isVoice = message.type === 'voice'
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [currentTime, setCurrentTime] = useState(0)
+  const [duration, setDuration] = useState(0)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+
+  useEffect(() => {
+    if (!isVoice) return
+    const audio = new Audio(message.content)
+    audioRef.current = audio
+
+    const onTimeUpdate = () => setCurrentTime(audio.currentTime)
+    const onLoadedMetadata = () => setDuration(audio.duration || 0)
+    const onEnded = () => setIsPlaying(false)
+
+    audio.addEventListener('timeupdate', onTimeUpdate)
+    audio.addEventListener('loadedmetadata', onLoadedMetadata)
+    audio.addEventListener('ended', onEnded)
+
+    return () => {
+      audio.pause()
+      audio.removeEventListener('timeupdate', onTimeUpdate)
+      audio.removeEventListener('loadedmetadata', onLoadedMetadata)
+      audio.removeEventListener('ended', onEnded)
+    }
+  }, [isVoice, message.content])
+
+  const togglePlay = () => {
+    if (!audioRef.current) return
+    if (isPlaying) {
+      audioRef.current.pause()
+      setIsPlaying(false)
+    } else {
+      audioRef.current.play().catch((err) => console.error('Audio play error:', err))
+      setIsPlaying(true)
+    }
+  }
+
+  const formatTime = (time: number) => {
+    if (isNaN(time)) return '0:00'
+    const mins = Math.floor(time / 60)
+    const secs = Math.floor(time % 60)
+    return `${mins}:${secs < 10 ? '0' : ''}${secs}`
+  }
+
+  const voiceProgress = duration > 0 ? currentTime / duration : 0
   const isGift = message.type === 'gift'
   const isEmoji = message.type === 'emoji'
   const isImage = message.type === 'image'
@@ -199,34 +244,43 @@ export default function MessageBubble({ message, isOwn, showExpiry, onSayThanks 
             </AnimatePresence>
           </div>
         ) : isVoice ? (
-          <div className="flex items-center gap-3 py-1">
+          <div className="flex items-center gap-3 py-1 min-w-[200px]">
             <motion.button
               whileTap={{ scale: 0.9 }}
-              className="size-8 rounded-full bg-white/20 flex items-center justify-center"
+              onClick={togglePlay}
+              className="size-8 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/30 transition-colors"
             >
-              <Mic className="size-4" />
+              {isPlaying ? <Pause className="size-4 text-current" /> : <Play className="size-4 text-current fill-current" />}
             </motion.button>
             <div className="flex-1 flex items-end gap-0.5 h-6">
-              {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => (
-                <motion.div
-                  key={i}
-                  className="w-1 bg-current rounded-full"
-                  animate={{ 
-                    height: [
-                      '40%', 
-                      `${Math.random() * 60 + 40}%`, 
-                      '40%'
-                    ] 
-                  }}
-                  transition={{ 
-                    repeat: Infinity, 
-                    duration: 1, 
-                    delay: i * 0.1 
-                  }}
-                />
-              ))}
+              {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14].map((i) => {
+                const isActive = (i / 15) <= voiceProgress
+                return (
+                  <motion.div
+                    key={i}
+                    className={cn(
+                      "w-1 rounded-full transition-colors duration-250",
+                      isActive ? "bg-current" : "bg-current/30"
+                    )}
+                    animate={isPlaying && isActive ? { 
+                      height: [
+                        '40%', 
+                        `${Math.random() * 60 + 40}%`, 
+                        '40%'
+                      ] 
+                    } : { height: `${30 + (i % 3) * 20}%` }}
+                    transition={{ 
+                      repeat: Infinity, 
+                      duration: 0.8, 
+                      delay: i * 0.05 
+                    }}
+                  />
+                )
+              })}
             </div>
-            <span className="text-[10px] opacity-70">0:12</span>
+            <span className="text-[10px] opacity-70 tabular-nums">
+              {formatTime(isPlaying ? currentTime : (duration || 0))}
+            </span>
           </div>
         ) : (
           <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>

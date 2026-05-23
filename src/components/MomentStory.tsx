@@ -14,7 +14,7 @@ export default function MomentStory({ moments }: MomentStoryProps) {
   const { t } = useT()
   const [viewingIndex, setViewingIndex] = useState<number | null>(null)
   const [progress, setProgress] = useState(0)
-  const timerRef = useRef<ReturnType<typeof setTimeout>>()
+  const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   const openStory = (index: number) => {
     setViewingIndex(index)

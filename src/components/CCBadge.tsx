@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion'
 import { Coins } from 'lucide-react'
-import { useConnectCoinStore } from '@/lib/connectcoin-store'
+import { useConnectCoinStore, ACTION_COSTS } from '@/lib/connectcoin-store'
 import { cn } from '@/lib/utils'
 
 /**
@@ -26,8 +26,7 @@ interface CCBadgeProps {
 
 export default function CCBadge({ action, cost, onSpend, variant = 'pill', className }: CCBadgeProps) {
   const balance = useConnectCoinStore((s) => s.balance)
-  const { ACTION_COSTS } = useConnectCoinStore.getState()
-  const ccCost = cost ?? ACTION_COSTS[action as keyof typeof ACTION_COSTS] ?? 1
+  const ccCost = cost ?? ACTION_COSTS[action as any] ?? 1
   const canAfford = balance >= ccCost
 
   if (variant === 'dot') {

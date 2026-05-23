@@ -10,21 +10,18 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '@/components/ui/button'
 import {
   useConnectCoinStore,
-  PACKS,
   ACTION_LABELS,
   type PremiumAction,
   type PackType,
 } from '@/lib/connectcoin-store'
 import { useT } from '@/lib/i18n/context'
 import { cn } from '@/lib/utils'
+import { useCurrencyStore, type PackLocalPrice } from '@/lib/currency-store'
 
 // Find the cheapest pack that covers the missing amount
-function findBestPack(missingCC: number): typeof PACKS[number] | null {
-  const sorted = [...PACKS].sort((a, b) => {
-    const priceA = parseFloat(a.price.replace(',', '.').replace('€', '').trim())
-    const priceB = parseFloat(b.price.replace(',', '.').replace('€', '').trim())
-    return priceA - priceB
-  })
+function findBestPack(missingCC: number, packPrices: PackLocalPrice[]): PackLocalPrice | null {
+  if (!packPrices || packPrices.length === 0) return null
+  const sorted = [...packPrices].sort((a, b) => a.rawLocalPrice - b.rawLocalPrice)
   return sorted.find(p => (p.cc + p.bonusCC) >= missingCC) || sorted[sorted.length - 1]
 }
 
@@ -86,6 +83,7 @@ function AnimatedDeficit({ value }: { value: number }) {
 
 export default function InsufficientBalanceDialog() {
   const { t } = useT()
+  const { packPrices } = useCurrencyStore()
   const {
     showInsufficientBalance,
     setShowInsufficientBalance,
@@ -123,7 +121,7 @@ export default function InsufficientBalanceDialog() {
   const { action, cost } = showInsufficientBalance
   const label = ACTION_LABELS[action]
   const missing = cost - balance
-  const suggestedPack = findBestPack(missing)
+  const suggestedPack = findBestPack(missing, packPrices)
 
   const handleGoToStore = (packType?: PackType | 'packs') => {
     setPhase('navigating')
@@ -235,7 +233,7 @@ export default function InsufficientBalanceDialog() {
                       </div>
                     </div>
                     <div className="text-right shrink-0">
-                      <p className="text-base font-bold">{suggestedPack.price}</p>
+                      <p className="text-base font-bold">{suggestedPack.priceFormatted}</p>
                     </div>
                   </div>
                 </motion.div>
@@ -425,7 +423,7 @@ export default function InsufficientBalanceDialog() {
                           </div>
                         </div>
                         <div className="text-right shrink-0">
-                          <p className="text-base font-bold">{suggestedPack.price}</p>
+                          <p className="text-base font-bold">{suggestedPack.priceFormatted}</p>
                           <div className="flex items-center gap-0.5 text-amber-400">
                             <span className="text-[9px] font-medium">{t('insufficient.buyNow')}</span>
                             <ArrowRight className="size-3" />

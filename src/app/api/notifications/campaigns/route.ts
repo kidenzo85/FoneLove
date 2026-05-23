@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
     if (countType === 'subs') {
       const { count, error } = await supabase
         .from('push_subscriptions')
-        .select('id', { count: 'exact', head: true })
+        .select('*', { count: 'estimated', head: true })
         .eq('is_active', true)
 
       if (error) {
@@ -30,6 +30,7 @@ export async function GET(req: NextRequest) {
       .from('notification_campaigns')
       .select('*')
       .order('created_at', { ascending: false })
+      .limit(50)
 
     if (status) {
       query = query.eq('status', status)

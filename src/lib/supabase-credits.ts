@@ -678,11 +678,11 @@ export async function fetchExchangeRate(currency: string): Promise<ExchangeRateI
   const supabase = getCreditsBrowserClient()
 
   const { data, error } = await supabase.functions.invoke('currency-rates', {
-    method: 'GET',
-    params: { currency },
+    method: 'POST',
+    body: { currencies: [currency] },
   })
 
-  if (error || !data) {
+  if (error || !data?.rates || !data.rates[currency]) {
     // Fallback sur le taux hardcoded
     const currDef = CURRENCIES[currency]
     return {
@@ -694,7 +694,14 @@ export async function fetchExchangeRate(currency: string): Promise<ExchangeRateI
     }
   }
 
-  return data as ExchangeRateInfo
+  const rateInfo = data.rates[currency]
+  return {
+    baseCurrency: 'EUR',
+    targetCurrency: currency,
+    rate: rateInfo.rate,
+    source: rateInfo.source,
+    fetchedAt: new Date().toISOString()
+  }
 }
 
 /**

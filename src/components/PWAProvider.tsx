@@ -176,7 +176,7 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   for (let i = 0; i < rawData.length; ++i) {
     outputArray[i] = rawData.charCodeAt(i)
   }
-  return outputArray
+  return outputArray as any
 }
 
 function detectDeviceType(): 'mobile' | 'desktop' | 'tablet' | 'unknown' {
@@ -235,7 +235,7 @@ export function NotificationPermission() {
           const registration = await navigator.serviceWorker.ready
           const subscription = await registration.pushManager.subscribe({
             userVisibleOnly: true,
-            applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+            applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) as any,
           })
 
           // Save subscription to server
@@ -341,7 +341,7 @@ export function registerServiceWorker() {
   if (typeof window === 'undefined') return
   if (!('serviceWorker' in navigator)) return
 
-  window.addEventListener('load', async () => {
+  const register = async () => {
     try {
       const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' })
       console.log('[PWA] Service Worker registered:', registration.scope)
@@ -357,7 +357,13 @@ export function registerServiceWorker() {
     } catch (error) {
       console.error('[PWA] Service Worker registration failed:', error)
     }
-  })
+  }
+
+  if (document.readyState === 'complete') {
+    register()
+  } else {
+    window.addEventListener('load', register)
+  }
 }
 
 // ============================================================

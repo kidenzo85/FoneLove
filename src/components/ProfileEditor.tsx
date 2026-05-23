@@ -282,13 +282,23 @@ export default function ProfileEditor({ profile, onSave, onClose }: ProfileEdito
             
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label className="text-xs font-bold text-muted-foreground mb-1.5 block">{t('onboard.birthDate') || 'Date de naissance'}</Label>
-                <Input
-                  type="date"
-                  value={form.birthDate}
-                  onChange={(e) => setForm({ ...form, birthDate: e.target.value })}
-                  className="h-12 text-base rounded-2xl bg-muted/30 border-none focus-visible:ring-primary/30"
-                />
+                <Label className="text-xs font-bold text-muted-foreground mb-1.5 block">{t('onboard.age') || 'Quel âge as-tu ?'}</Label>
+                <select
+                  value={form.birthDate ? new Date().getFullYear() - new Date(form.birthDate).getFullYear() : ''}
+                  onChange={(e) => {
+                    const age = parseInt(e.target.value);
+                    if (!isNaN(age)) {
+                      const year = new Date().getFullYear() - age;
+                      setForm({ ...form, birthDate: `${year}-01-01` });
+                    }
+                  }}
+                  className="h-12 w-full text-base rounded-2xl bg-muted/30 border-none focus:outline-none focus:ring-2 focus-visible:ring-primary/30 px-4"
+                >
+                  <option value="" disabled>{t('onboard.selectAge') || 'Sélectionne ton âge'}</option>
+                  {Array.from({ length: 82 }, (_, i) => i + 18).map(age => (
+                    <option key={age} value={age}>{age} ans</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <Label className="text-xs font-bold text-muted-foreground mb-1.5 block">{t('editor.city') || 'Ville'}</Label>
@@ -369,8 +379,10 @@ export default function ProfileEditor({ profile, onSave, onClose }: ProfileEdito
               <span className="font-bold">{profile.firstName}</span>
             </div>
             <div className="flex justify-between items-center py-1">
-              <span className="text-sm text-muted-foreground font-medium">{t('onboard.birthDate') || 'Date de naissance'}</span>
-              <span className="font-bold">{profile.birthDate || '-'}</span>
+              <span className="text-sm text-muted-foreground font-medium">{t('onboard.age') || 'Âge'}</span>
+              <span className="font-bold">
+                {profile.birthDate ? `${new Date().getFullYear() - new Date(profile.birthDate).getFullYear()} ans` : '-'}
+              </span>
             </div>
             <div className="flex justify-between items-center py-1">
               <span className="text-sm text-muted-foreground font-medium">{t('onboard.gender') || 'Genre'}</span>

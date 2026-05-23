@@ -37,7 +37,6 @@ import MomentStory from '@/components/MomentStory'
 import StreakCounter from '@/components/StreakCounter'
 import ProfileScore from '@/components/ProfileScore'
 import BoostButton from '@/components/BoostButton'
-import PremiumCard from '@/components/PremiumCard'
 import FeedbackProvider, { useFeedback } from '@/components/FeedbackSystem'
 import TikTokViewer from '@/components/TikTokViewer'
 import AdminDashboard from '@/components/AdminDashboard'
@@ -58,6 +57,14 @@ import FoneLoveWallet from '@/components/FoneLoveWallet'
 import SendFoneLoveDialog from '@/components/SendFoneLoveDialog'
 import FoneLoveReceiveAnimation from '@/components/FoneLoveReceiveAnimation'
 import ProfileFrame from '@/components/ProfileFrame'
+import NotificationSubscribeCard from '@/components/NotificationSubscribeCard'
+import NotificationOptInBanner from '@/components/NotificationOptInBanner'
+import { NotificationCenter } from '@/components/NotificationCenter'
+import { NotificationSettingsSheet } from '@/components/NotificationSettingsSheet'
+import { Bell } from 'lucide-react'
+import ActiveFeaturesPill from '@/components/ActiveFeaturesPill'
+import ActiveFeaturesSheet from '@/components/ActiveFeaturesSheet'
+
 
 // ======== Login Screen — Now just renders Landing with inline auth ========
 function LoginScreen({ onLogin }: { onLogin: (user: UserProfile) => void }) {
@@ -165,7 +172,8 @@ function DiscoverTab({ onRequest }: { onRequest: (profile: ProfileWithDetails) =
 
   if (viewMode === 'grid') {
     return (
-      <div className="flex h-full flex-col">
+      <div className="flex h-full flex-col relative">
+        <ActiveFeaturesPill />
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3">
           <div>
@@ -238,6 +246,7 @@ function DiscoverTab({ onRequest }: { onRequest: (profile: ProfileWithDetails) =
   // TikTok-style fullscreen viewer
   return (
     <div className="relative h-dvh">
+      <ActiveFeaturesPill />
       {/* Top bar overlay */}
       <div className="absolute top-0 left-0 right-0 z-40 flex items-center justify-between px-4 py-3 safe-area-top">
         <div className="flex items-center gap-2">
@@ -654,7 +663,7 @@ function ProfileTab({ onOpenAdmin }: { onOpenAdmin: () => void }) {
   const { t } = useT()
   const { currentUser, profileVisits } = useAppStore()
   const { trigger } = useFeedback()
-  const { hasActiveFeature, fetchActiveFeatures } = usePremiumFeatures()
+  const { hasActiveFeature, fetchActiveFeatures, activeFeatures } = usePremiumFeatures()
   const canSeeVisitors = hasActiveFeature('see_visitors')
   const { setShowInsufficientBalance, spendCredits, fetchBalance, balance } = useConnectCoinStore()
   const ccLevel = useConnectCoinStore((s) => s.level)
@@ -663,6 +672,11 @@ function ProfileTab({ onOpenAdmin }: { onOpenAdmin: () => void }) {
   const [darkMode, setDarkMode] = useState(true)
   const [incognito, setIncognito] = useState(false)
   const [paused, setPaused] = useState(false)
+  const [showActiveFeaturesSheet, setShowActiveFeaturesSheet] = useState(false)
+  const [showNotificationSettings, setShowNotificationSettings] = useState(false)
+
+  // Filter valid active features
+  const currentActiveFeatures = activeFeatures.filter(f => !f.isConsumed && new Date(f.expiresAt).getTime() > Date.now())
 
   useEffect(() => {
     if (darkMode) {
@@ -785,6 +799,20 @@ function ProfileTab({ onOpenAdmin }: { onOpenAdmin: () => void }) {
             ✏️
           </Button>
         </div>
+
+        {/* Active Features Button */}
+        {currentActiveFeatures.length > 0 && (
+          <motion.div whileTap={{ scale: 0.98 }}>
+            <Button
+              onClick={() => setShowActiveFeaturesSheet(true)}
+              className="w-full h-12 rounded-2xl bg-gradient-to-r from-primary/10 to-pink-500/10 text-primary font-bold border border-primary/20 hover:bg-primary/20"
+            >
+              ✨ {currentActiveFeatures.length} avantage{currentActiveFeatures.length > 1 ? 's' : ''} en cours
+            </Button>
+          </motion.div>
+        )}
+
+        <NotificationSubscribeCard />
 
         {/* Onboarding Details Card */}
         <div className="rounded-2xl bg-card border p-4 space-y-3">
@@ -1032,6 +1060,16 @@ function ProfileTab({ onOpenAdmin }: { onOpenAdmin: () => void }) {
 
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
+              <Bell className="size-4" />
+              <span className="text-sm">Réglages des alertes</span>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => setShowNotificationSettings(true)}>
+              Configurer
+            </Button>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
               {darkMode ? <Moon className="size-4" /> : <Sun className="size-4" />}
               <span className="text-sm">{t('profile.darkMode')}</span>
             </div>
@@ -1067,10 +1105,6 @@ function ProfileTab({ onOpenAdmin }: { onOpenAdmin: () => void }) {
           </motion.div>
         )}
 
-        {/* Premium upsell */}
-        <motion.div whileTap={{ scale: 0.98 }}>
-          <PremiumCard onUpgrade={() => trigger('premium')} />
-        </motion.div>
 
         {/* Logout */}
         <Button
@@ -1087,6 +1121,8 @@ function ProfileTab({ onOpenAdmin }: { onOpenAdmin: () => void }) {
           <DatingPoster user={currentUser} onClose={() => setShowPoster(false)} />
         )}
       </AnimatePresence>
+      <ActiveFeaturesSheet open={showActiveFeaturesSheet} onOpenChange={setShowActiveFeaturesSheet} />
+      <NotificationSettingsSheet open={showNotificationSettings} onOpenChange={setShowNotificationSettings} />
     </div>
   )
 }
@@ -1402,13 +1438,84 @@ function NumberRequestDialog({
 
 
 // ======== Fullscreen Loading Screen (Logo Animation 21) ========
+// ======== Fullscreen Loading Screen (Logo Animation 21) ========
 export function FullscreenLoadingScreen() {
+  const [progress, setProgress] = useState(0)
+  const [hearts, setHearts] = useState<{ id: number; x: number; y: number; drift: number }[]>([])
+  const { t } = useT()
+
+  // Smoothly increment progress
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setProgress((prev) => {
+        if (prev >= 98) return prev
+        // Slow down as it approaches 100%
+        const increment = prev > 80 ? 1 : prev > 50 ? 2 : 3
+        return Math.min(prev + increment, 98)
+      })
+    }, 150)
+    return () => clearInterval(timer)
+  }, [])
+
+  const handleScreenTap = (e: React.MouseEvent<HTMLDivElement>) => {
+    // Get tap coordinates relative to viewport
+    const rect = e.currentTarget.getBoundingClientRect()
+    const x = e.clientX - rect.left
+    const y = e.clientY - rect.top
+    const drift = (Math.random() - 0.5) * 60 // random horizontal drift
+
+    // Spawn a heart
+    setHearts((prev) => [...prev, { id: Date.now() + Math.random(), x, y, drift }])
+
+    // Boost progress by 5-10%
+    setProgress((prev) => Math.min(prev + Math.floor(Math.random() * 6) + 5, 99))
+  }
+
+  const removeHeart = (id: number) => {
+    setHearts((prev) => prev.filter((h) => h.id !== id))
+  }
+
+  // Dynamic status text based on progress
+  const getStatusText = () => {
+    const s1 = t('loading.status1')
+    const s2Resolved = t('loading.status2')
+    const s3 = t('loading.status3')
+    const s4 = t('loading.status4')
+    const s5 = t('loading.status5')
+
+    if (progress < 25) return s1 !== 'loading.status1' ? s1 : 'Allumage du signal amoureux...'
+    if (progress < 50) return s2Resolved !== 'loading.status2' ? s2Resolved : 'Synchronisation des cœurs...'
+    if (progress < 75) return s3 !== 'loading.status3' ? s3 : 'Recherche de profils...'
+    if (progress < 95) return s4 !== 'loading.status4' ? s4 : 'Finalisation de la connexion...'
+    return s5 !== 'loading.status5' ? s5 : 'Prêt ! Lancement de Fonelove...'
+  }
+
   return (
-    <div className="flex min-h-dvh flex-col items-center justify-center bg-zinc-950 text-white p-8 relative overflow-hidden">
-      {/* Background radial glow */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] bg-pink-500/10 rounded-full blur-[80px] pointer-events-none" />
+    <div
+      onClick={handleScreenTap}
+      className="flex min-h-dvh flex-col items-center justify-between bg-zinc-950 text-white p-8 relative overflow-hidden select-none cursor-pointer"
+    >
+      {/* Floating interactive hearts */}
+      {hearts.map((h) => (
+        <motion.div
+          key={h.id}
+          initial={{ opacity: 1, scale: 0.8, x: h.x - 12, y: h.y - 12 }}
+          animate={{ opacity: 0, scale: 1.6, x: h.x - 12 + h.drift, y: h.y - 100 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 1.2, ease: 'easeOut' }}
+          className="absolute pointer-events-none text-pink-500 z-50"
+          onAnimationComplete={() => removeHeart(h.id)}
+        >
+          <Heart fill="currentColor" className="size-6 drop-shadow-[0_0_10px_rgba(236,72,153,0.6)]" />
+        </motion.div>
+      ))}
+
+      <div /> {/* Spacer */}
 
       <div className="flex flex-col items-center justify-center gap-8 w-full max-w-[280px]">
+        {/* Background radial glow */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] bg-pink-500/10 rounded-full blur-[80px] pointer-events-none" />
+
         {/* SVG logo with the combined animation (Proposal 21) */}
         <div className="w-32 h-32 drop-shadow-2xl">
           <svg width="100%" height="100%" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -1454,11 +1561,39 @@ export function FullscreenLoadingScreen() {
 
         {/* Brand name & slogan */}
         <div className="flex flex-col items-center text-center">
-          <span className="text-2xl font-black tracking-tight bg-gradient-to-r from-pink-500 to-rose-500 bg-clip-text text-transparent">
+          <span className="text-3xl font-black tracking-tight bg-gradient-to-r from-pink-500 via-rose-500 to-orange-500 bg-clip-text text-transparent drop-shadow-[0_2px_10px_rgba(236,72,153,0.2)]">
             Fonelove
           </span>
-          <span className="text-xs font-semibold tracking-widest uppercase text-zinc-500 mt-1.5 animate-pulse">
+          <span className="text-[10px] font-bold tracking-widest uppercase text-zinc-500 mt-2">
             L&apos;amour au bout du fil
+          </span>
+        </div>
+      </div>
+
+      {/* Loading bar container at the bottom */}
+      <div className="w-full max-w-[280px] flex flex-col items-center gap-3 pb-8 z-10">
+        {/* Visual progress bar */}
+        <div className="w-full h-2 bg-zinc-900/80 rounded-full overflow-hidden border border-zinc-800/40 relative shadow-inner">
+          <motion.div
+            className="h-full bg-gradient-to-r from-pink-500 via-rose-500 to-orange-500 rounded-full relative"
+            style={{ width: `${progress}%` }}
+            layoutId="loading-bar-fill"
+          >
+            {/* Glossy light effect */}
+            <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.15),transparent)]" />
+            
+            {/* Glowing endpoint indicator */}
+            <span className="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-white shadow-[0_0_10px_#fff,0_0_15px_rgba(236,72,153,0.8)]" />
+          </motion.div>
+        </div>
+
+        {/* Informative / Interactive text helper */}
+        <div className="flex flex-col items-center gap-1 text-center min-h-[36px]">
+          <span className="text-xs font-semibold text-zinc-400">
+            {getStatusText()}
+          </span>
+          <span className="text-[9px] font-medium text-pink-500/70 animate-pulse">
+            {progress}% • Tapotez pour accélérer ⚡
           </span>
         </div>
       </div>
@@ -1507,6 +1642,7 @@ function AppContent() {
   const [requestTarget, setRequestTarget] = useState<ProfileWithDetails | null>(null)
   const [seeded, setSeeded] = useState(false)
   const [showAdmin, setShowAdmin] = useState(false)
+  const [showNotificationCenter, setShowNotificationCenter] = useState(false)
   const [isMounted, setIsMounted] = useState(false)
 
   // ConnectCoin store
@@ -1617,11 +1753,25 @@ function AppContent() {
       setIsLoading(true)
       try {
         // Ensure user exists in Prisma/SQLite whenever app starts
-        await fetch('/api/auth/sync-user', {
+        const syncRes = await fetch('/api/auth/sync-user', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ user: currentUser }),
-        }).catch(err => console.error('Initial sync error:', err))
+        }).catch(err => {
+          console.error('Initial sync fetch error:', err)
+          return null
+        })
+
+        if (syncRes && syncRes.status === 409) {
+          const syncData = await syncRes.json()
+          if (syncData.error === 'ID_MISMATCH' && syncData.correctUser) {
+            console.warn('Stale user ID detected in local storage. Updating store to correct ID:', syncData.correctUser.id)
+            setUser(syncData.correctUser)
+            // Reload page to start fresh with correct user details
+            window.location.reload()
+            return
+          }
+        }
 
         if (!seeded) {
           await fetch('/api/seed', { method: 'POST' })
@@ -1772,6 +1922,9 @@ function AppContent() {
   // Main app
   return (
     <div className="relative h-dvh bg-background overflow-hidden">
+      {/* Global floating notification opt-in banner (slides from top) */}
+      <NotificationOptInBanner />
+
       {/* Tab content */}
       <div className={cn('h-full', activeTab === 'discover' ? '' : 'pb-20')}>
         <AnimatePresence mode="wait">
@@ -1823,8 +1976,8 @@ function AppContent() {
             const data = await res.json()
             if (data.requests) setSentRequests(data.requests)
             
-            // Remove the profile from the feed after a successful request
-            setTimeout(() => useAppStore.getState().removeProfile(requestTarget.id), 300)
+            // Update the profile request status to 'pending' instead of removing it
+            setTimeout(() => useAppStore.getState().updateProfileRequestStatus(requestTarget.id, 'pending'), 300)
           }
         }}
       />

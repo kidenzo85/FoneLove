@@ -65,7 +65,7 @@ interface FoneLoveState {
   fetchConfig: () => Promise<void>
   fetchHistory: (userId: string) => Promise<void>
   sendFoneLove: (senderId: string, receiverId: string, amount: number, message?: string) => Promise<boolean>
-  rechargeWallet: (userId: string, amount: number, paymentMethod: 'cc' | 'external') => Promise<boolean>
+  rechargeWallet: (userId: string, amount: number) => Promise<boolean>
   requestWithdraw: (userId: string, amount: number) => Promise<boolean>
   setShowSendDialog: (target: SendDialogTarget | null) => void
   setShowWallet: (show: boolean) => void
@@ -154,20 +154,25 @@ export const useFoneLoveStore = create<FoneLoveState>()(
         }
       },
 
-      rechargeWallet: async (userId: string, amount: number, paymentMethod: 'cc' | 'external') => {
+      rechargeWallet: async (userId: string, amount: number) => {
         try {
-          const res = await fetch('/api/fonelove/recharge', {
+          // FoneLove can ONLY be purchased with real money via CoolPay.
+          // ConnectCoin→FoneLove conversion is NOT allowed.
+          const res = await fetch('/api/fonelove/recharge/initiate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId, amount, paymentMethod }),
+            body: JSON.stringify({ userId, flAmount: amount }),
           })
           const data = await res.json()
           if (data.error) {
-            console.error('FoneLove recharge error:', data.error)
+            console.error('FoneLove recharge initiate error:', data.error)
             return false
           }
-          await get().fetchWallet(userId)
-          return true
+          if (data.paymentUrl) {
+            window.location.href = data.paymentUrl
+            return true
+          }
+          return false
         } catch (err) {
           console.error('FoneLove rechargeWallet error:', err)
           return false

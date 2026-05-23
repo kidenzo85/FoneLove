@@ -149,7 +149,7 @@ export async function POST(req: NextRequest) {
 
     // Check for milestone rewards
     const milestone = STREAK_MILESTONES[newStreak]
-    let milestoneReward = null
+    let milestoneReward: any = null
 
     if (milestone) {
       // Get or create wallet for rewards

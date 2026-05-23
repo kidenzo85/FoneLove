@@ -82,6 +82,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ connections: formatted })
   } catch (error) {
     console.error('Connections GET error:', error)
-    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Erreur serveur' }, { status: 500 })
   }
 }

@@ -102,7 +102,11 @@ self.addEventListener('fetch', (event) => {
 
   // Route to appropriate strategy
   if (isApiRequest(url)) {
-    event.respondWith(networkFirstWithFallback(request, API_CACHE, 5));
+    // Never cache write endpoints — always go to network directly
+    if (isUncacheableApi(url)) {
+      return; // Let browser handle it natively
+    }
+    event.respondWith(networkFirstWithFallback(request, API_CACHE, 15));
   } else if (isImageRequest(url, request)) {
     event.respondWith(staleWhileRevalidate(request, IMAGE_CACHE));
   } else if (isStaticAsset(url)) {
@@ -248,6 +252,21 @@ async function navigationStrategy(request) {
 
 function isApiRequest(url) {
   return url.pathname.startsWith('/api/');
+}
+
+// Routes that must NEVER be served from cache (payments, auth writes, credits)
+function isUncacheableApi(url) {
+  const p = url.pathname;
+  return (
+    p.startsWith('/api/payments/') ||
+    p.startsWith('/api/credits/spend') ||
+    p.startsWith('/api/credits/daily-free') ||
+    p.startsWith('/api/credits/streak') ||
+    p.startsWith('/api/fonelove/send') ||
+    p.startsWith('/api/fonelove/recharge') ||
+    p.startsWith('/api/fonelove/withdraw') ||
+    p.startsWith('/api/auth/')
+  );
 }
 
 function isImageRequest(url, request) {

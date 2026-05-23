@@ -336,6 +336,8 @@ const en = {
     firstName: 'First name',
     firstNamePlaceholder: 'Your first name',
     birthDate: 'Date of birth',
+    age: 'How old are you?',
+    selectAge: 'Select your age',
     gender: 'Gender',
     male: '👨 Male',
     female: '👩 Female',
@@ -607,6 +609,15 @@ const en = {
     incognitoMode: 'Incognito mode',
     unlimitedMessages: 'Unlimited messages',
     seeVisitors: 'See who visited you',
+  },
+
+  // === Loading Screen ===
+  loading: {
+    status1: 'Igniting the love signal...',
+    status2: 'Synchronizing hearts...',
+    status3: 'Searching profiles...',
+    status4: 'Finalizing connection...',
+    status5: 'Ready! Launching Fonelove...',
   },
 } as const
 

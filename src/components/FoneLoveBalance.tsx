@@ -7,12 +7,21 @@ import { useFoneLoveStore } from '@/lib/fonelove-store'
 import { useAppStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
+import { useShallow } from 'zustand/react/shallow'
+
 interface FoneLoveBalanceProps {
   compact?: boolean
 }
 
 export default function FoneLoveBalance({ compact = false }: FoneLoveBalanceProps) {
-  const { sendBalance, receivedBalance, setShowWallet, fetchWallet } = useFoneLoveStore()
+  const { sendBalance, receivedBalance, setShowWallet, fetchWallet } = useFoneLoveStore(
+    useShallow(s => ({
+      sendBalance: s.sendBalance,
+      receivedBalance: s.receivedBalance,
+      setShowWallet: s.setShowWallet,
+      fetchWallet: s.fetchWallet,
+    }))
+  )
   const currentUser = useAppStore((s) => s.currentUser)
   const [justChanged, setJustChanged] = useState(false)
   const [prevBalance, setPrevBalance] = useState(sendBalance)

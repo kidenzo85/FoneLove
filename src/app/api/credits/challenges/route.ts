@@ -71,7 +71,7 @@ async function ensureWeeklyChallenges() {
   }
 
   // Create challenges for this week
-  const challenges = []
+  const challenges: any[] = []
   for (const template of CHALLENGE_TEMPLATES) {
     const existing = existingChallenges.find((c) => c.type === template.type)
     if (existing) {

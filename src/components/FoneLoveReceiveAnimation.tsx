@@ -5,9 +5,15 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Gift } from 'lucide-react'
 import { useFoneLoveStore } from '@/lib/fonelove-store'
 import { useAppStore } from '@/lib/store'
+import { useShallow } from 'zustand/react/shallow'
 
 export default function FoneLoveReceiveAnimation() {
-  const { pendingReceivedGift, setPendingReceivedGift } = useFoneLoveStore()
+  const { pendingReceivedGift, setPendingReceivedGift } = useFoneLoveStore(
+    useShallow(s => ({
+      pendingReceivedGift: s.pendingReceivedGift,
+      setPendingReceivedGift: s.setPendingReceivedGift
+    }))
+  )
   const currentUser = useAppStore(s => s.currentUser)
   const [active, setActive] = useState(false)
 
@@ -18,8 +24,9 @@ export default function FoneLoveReceiveAnimation() {
       try {
         const res = await fetch(`/api/fonelove/pending-gifts?userId=${currentUser.id}`)
         const data = await res.json()
-        if (data.gift && !pendingReceivedGift) {
-          setPendingReceivedGift(data.gift)
+        const currentPending = useFoneLoveStore.getState().pendingReceivedGift
+        if (data.gift && !currentPending) {
+          useFoneLoveStore.getState().setPendingReceivedGift(data.gift)
         }
       } catch (err) {
         console.error('Failed to poll gifts', err)
@@ -29,7 +36,7 @@ export default function FoneLoveReceiveAnimation() {
     // We can poll every 15 seconds, or just once on mount
     const interval = setInterval(checkGifts, 15000)
     return () => clearInterval(interval)
-  }, [currentUser, pendingReceivedGift, setPendingReceivedGift])
+  }, [currentUser])
 
   useEffect(() => {
     if (pendingReceivedGift && currentUser) {

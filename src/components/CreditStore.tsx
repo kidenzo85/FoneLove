@@ -5,7 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Coins, Flame, Gift, Clock, Star, ShoppingCart,
   CheckCircle2, Sparkles, ChevronRight, X, Zap,
-  Trophy, History
+  Trophy, History, Shield, Phone, Disc3, XCircle,
+  AlertCircle
 } from 'lucide-react'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
@@ -23,6 +24,7 @@ import {
   type PremiumAction,
   type PromoItem,
 } from '@/lib/connectcoin-store'
+import { useCurrencyStore, type PackLocalPrice } from '@/lib/currency-store'
 import { useAppStore } from '@/lib/store'
 import { useT } from '@/lib/i18n/context'
 import { cn } from '@/lib/utils'
@@ -97,9 +99,9 @@ function ConfettiParticles({ active }: { active: boolean }) {
           key={p.id}
           initial={{ opacity: 1, y: 0, x: `${p.x}%`, scale: 1 }}
           animate={{ opacity: 0, y: -120, scale: 0.5 }}
-          transition={{ duration: 1.2, delay: p.delay, ease: 'easeOut' }}
-          className="absolute text-lg"
-          style={{ left: `${p.x}%`, bottom: '30%' }}
+          transition={{ duration: 1.5, delay: p.delay, ease: 'easeOut' }}
+          className="absolute"
+          style={{ left: `${p.x}%`, bottom: '20%' }}
         >
           {p.emoji}
         </motion.div>
@@ -108,167 +110,11 @@ function ConfettiParticles({ active }: { active: boolean }) {
   )
 }
 
-// ===== Daily Free Section =====
-function DailyFreeSection() {
-  const { t } = useT()
-  const { dailyFreeClaimed, claimDailyFree, checkInStreak, balance, streak } = useConnectCoinStore()
-  const currentUser = useAppStore((s) => s.currentUser)
-  const [claiming, setClaiming] = useState(false)
-  const [showConfetti, setShowConfetti] = useState(false)
-  const [claimedAmount, setClaimedAmount] = useState<number | null>(null)
-  const [sharedGiftInfo, setSharedGiftInfo] = useState<{ amount: number; giftAmount: number } | null>(null)
-
-  const todayReward = useMemo(() => {
-    const currentStreak = streak?.currentStreak ?? 0
-    const streakBonus = Math.min(Math.max(0, currentStreak - 1), 5)
-    return 3 + streakBonus
-  }, [streak?.currentStreak])
-
-  const handleClaim = async () => {
-    if (!currentUser || dailyFreeClaimed) return
-    setClaiming(true)
-    try {
-      // 1. Assurer d'abord la validation du streak et l'obtention des paliers
-      if (streak && !streak.todayBonusClaimed) {
-        await checkInStreak(currentUser.id)
-      }
-
-      // 2. Réclamer ensuite les pièces gratuites quotidiennes et déclencher le partage
-      const result = await claimDailyFree(currentUser.id)
-      if (result !== null) {
-        setClaimedAmount(result.amount)
-        if (result.hasSharedGift && result.sharedGiftAmount) {
-          setSharedGiftInfo({
-            amount: result.amount,
-            giftAmount: result.sharedGiftAmount,
-          })
-        } else {
-          setShowConfetti(true)
-          setTimeout(() => setShowConfetti(false), 2000)
-        }
-      }
-    } catch (err) {
-      console.error('Claim error:', err)
-    }
-    setClaiming(false)
-  }
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 15 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.1 }}
-      className="relative rounded-2xl border border-amber-500/20 bg-gradient-to-br from-amber-500/10 to-yellow-500/5 p-4 backdrop-blur-sm overflow-hidden"
-    >
-      <ConfettiParticles active={showConfetti} />
-
-      {/* Shimmer overlay */}
-      <div className="absolute inset-0 animate-shimmer opacity-30" />
-
-      <div className="relative z-10">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <motion.div
-              animate={!dailyFreeClaimed ? { scale: [1, 1.15, 1] } : {}}
-              transition={{ repeat: Infinity, duration: 2 }}
-              className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-500/20 border border-amber-500/20"
-            >
-              <Gift className="size-5 text-amber-400" />
-            </motion.div>
-            <div>
-              <h3 className="text-sm font-bold text-amber-300">{t('store.freeCC')}</h3>
-              <p className="text-[10px] text-muted-foreground">{t('store.freeCCHint')}</p>
-            </div>
-          </div>
-
-          {/* Streak badge */}
-          {streak && streak.currentStreak > 0 && (
-            <div className="flex items-center gap-1 rounded-full bg-orange-500/15 border border-orange-500/20 px-2 py-0.5">
-              <Flame className="size-3 text-orange-400" />
-              <span className="text-[10px] font-bold text-orange-400">{streak.currentStreak}j</span>
-            </div>
-          )}
-        </div>
-
-        <AnimatePresence mode="wait">
-          {dailyFreeClaimed && claimedAmount !== null ? (
-            <motion.div
-              key="claimed"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0 }}
-              className="flex items-center justify-center gap-2 rounded-xl bg-green-500/10 border border-green-500/20 py-2.5"
-            >
-              <CheckCircle2 className="size-4 text-green-400" />
-              <span className="text-sm font-semibold text-green-400">
-                {t('store.claimed', { n: claimedAmount })}
-              </span>
-            </motion.div>
-          ) : dailyFreeClaimed ? (
-            <motion.div
-              key="done"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="flex items-center justify-center gap-2 rounded-xl bg-muted/30 border border-border/20 py-2.5"
-            >
-              <CheckCircle2 className="size-4 text-muted-foreground" />
-              <span className="text-xs text-muted-foreground">{t('store.alreadyClaimed')}</span>
-            </motion.div>
-          ) : (
-            <motion.div
-              key="claim"
-              initial={{ opacity: 0, y: 5 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -5 }}
-            >
-              <Button
-                className="w-full rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 text-black font-bold hover:from-amber-600 hover:to-yellow-600 shadow-lg shadow-amber-500/20"
-                onClick={handleClaim}
-                disabled={claiming}
-              >
-                {claiming ? (
-                  <motion.span
-                    animate={{ opacity: [0.5, 1, 0.5] }}
-                    transition={{ repeat: Infinity, duration: 1 }}
-                  >
-                    {t('store.claiming')}
-                  </motion.span>
-                ) : (
-                  <>
-                    <Gift className="mr-1.5 size-4" />
-                    {t('store.claimFree', { n: todayReward })}
-                  </>
-                )}
-              </Button>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-
-      {/* Shared Gift Overlay */}
-      <AnimatePresence>
-        {sharedGiftInfo && (
-          <SharedGiftOverlay
-            amount={sharedGiftInfo.amount}
-            giftAmount={sharedGiftInfo.giftAmount}
-            onClose={() => {
-              setSharedGiftInfo(null)
-              setShowConfetti(true)
-              setTimeout(() => setShowConfetti(false), 2000)
-            }}
-          />
-        )}
-      </AnimatePresence>
-    </motion.div>
-  )
-}
-
 // ===== Pack Card =====
 function PackCard({ pack, index, onPurchase }: {
-  pack: typeof PACKS[number]
+  pack: PackLocalPrice
   index: number
-  onPurchase: (pack: typeof PACKS[number]) => void
+  onPurchase: (pack: PackLocalPrice) => void
 }) {
   const { t } = useT()
   const [visible, setVisible] = useState(false)
@@ -335,11 +181,169 @@ function PackCard({ pack, index, onPurchase }: {
 
         {/* Price */}
         <div className="text-right shrink-0">
-          <p className="text-lg font-bold">{pack.price}</p>
-          <p className="text-[9px] text-muted-foreground">{pack.pricePerCC}/CC</p>
+          <p className="text-lg font-bold">{pack.priceFormatted}</p>
+          <p className="text-[9px] text-muted-foreground">{pack.pricePerCCFormatted}</p>
         </div>
       </div>
     </motion.div>
+  )
+}
+
+// ===== Daily Free Section =====
+function DailyFreeSection() {
+  const { t } = useT()
+  const { dailyFreeClaimed, claimDailyFree, checkInStreak, balance, streak } = useConnectCoinStore()
+  const currentUser = useAppStore((s) => s.currentUser)
+  const [claiming, setClaiming] = useState(false)
+  const [showConfetti, setShowConfetti] = useState(false)
+  const [claimedAmount, setClaimedAmount] = useState<number | null>(null)
+  const [sharedGiftInfo, setSharedGiftInfo] = useState<{ amount: number; giftAmount: number } | null>(null)
+
+  const todayReward = useMemo(() => {
+    const currentStreak = streak?.currentStreak ?? 0
+    const streakBonus = Math.min(Math.max(0, currentStreak - 1), 5)
+    return 3 + streakBonus
+  }, [streak?.currentStreak])
+
+  const handleClaim = async () => {
+    if (!currentUser || dailyFreeClaimed) return
+    setClaiming(true)
+    try {
+      // 1. Assurer d'abord la validation du streak et l'obtention des paliers
+      if (streak && !streak.todayBonusClaimed) {
+        await checkInStreak(currentUser.id)
+      }
+
+      // 2. Réclamer ensuite les pièces gratuites quotidiennes et déclencher le partage
+      const result = await claimDailyFree(currentUser.id)
+      if (result !== null) {
+        setClaimedAmount(result.amount)
+        if (result.hasSharedGift && result.sharedGiftAmount) {
+          setSharedGiftInfo({
+            amount: result.amount,
+            giftAmount: result.sharedGiftAmount,
+          })
+        } else {
+          setShowConfetti(true)
+          setTimeout(() => setShowConfetti(false), 2000)
+        }
+      }
+    } catch (err) {
+      console.error('Claim error:', err)
+    }
+    setClaiming(false)
+  }
+
+  return (
+    <>
+      <motion.div
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="relative rounded-2xl border border-amber-500/20 bg-gradient-to-br from-amber-500/10 to-yellow-500/5 p-4 backdrop-blur-sm overflow-hidden"
+      >
+        <ConfettiParticles active={showConfetti} />
+
+        {/* Shimmer overlay */}
+        <div className="absolute inset-0 animate-shimmer opacity-30" />
+
+        <div className="relative z-10">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <motion.div
+                animate={!dailyFreeClaimed ? { scale: [1, 1.15, 1] } : {}}
+                transition={{ repeat: Infinity, duration: 2 }}
+                className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-500/20 border border-amber-500/20"
+              >
+                <Gift className="size-5 text-amber-400" />
+              </motion.div>
+              <div>
+                <h3 className="text-sm font-bold text-amber-300">{t('store.freeCC')}</h3>
+                <p className="text-[10px] text-muted-foreground">{t('store.freeCCHint')}</p>
+              </div>
+            </div>
+
+            {/* Streak badge */}
+            {streak && streak.currentStreak > 0 && (
+              <div className="flex items-center gap-1 rounded-full bg-orange-500/15 border border-orange-500/20 px-2 py-0.5">
+                <Flame className="size-3 text-orange-400" />
+                <span className="text-[10px] font-bold text-orange-400">{streak.currentStreak}j</span>
+              </div>
+            )}
+          </div>
+
+          <AnimatePresence mode="wait">
+            {dailyFreeClaimed && claimedAmount !== null ? (
+              <motion.div
+                key="claimed"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0 }}
+                className="flex items-center justify-center gap-2 rounded-xl bg-green-500/10 border border-green-500/20 py-2.5"
+              >
+                <CheckCircle2 className="size-4 text-green-400" />
+                <span className="text-sm font-semibold text-green-400">
+                  {t('store.claimed', { n: claimedAmount })}
+                </span>
+              </motion.div>
+            ) : dailyFreeClaimed ? (
+              <motion.div
+                key="done"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="flex items-center justify-center gap-2 rounded-xl bg-muted/30 border border-border/20 py-2.5"
+              >
+                <CheckCircle2 className="size-4 text-muted-foreground" />
+                <span className="text-xs text-muted-foreground">{t('store.alreadyClaimed')}</span>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="claim"
+                initial={{ opacity: 0, y: 5 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -5 }}
+              >
+                <Button
+                  className="w-full rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 text-black font-bold hover:from-amber-600 hover:to-yellow-600 shadow-lg shadow-amber-500/20"
+                  onClick={handleClaim}
+                  disabled={claiming}
+                >
+                  {claiming ? (
+                    <motion.span
+                      animate={{ opacity: [0.5, 1, 0.5] }}
+                      transition={{ repeat: Infinity, duration: 1 }}
+                    >
+                      {t('store.claiming')}
+                    </motion.span>
+                  ) : (
+                    <>
+                      <Gift className="mr-1.5 size-4" />
+                      {t('store.claimFree', { n: todayReward })}
+                    </>
+                  )}
+                </Button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </motion.div>
+
+      {/* Shared Gift Overlay */}
+      <AnimatePresence>
+        {sharedGiftInfo && (
+          <SharedGiftOverlay
+            amount={sharedGiftInfo.amount}
+            giftAmount={sharedGiftInfo.giftAmount}
+            onClose={() => {
+              setSharedGiftInfo(null)
+              setShowConfetti(true)
+              setTimeout(() => setShowConfetti(false), 2000)
+            }}
+          />
+        )}
+      </AnimatePresence>
+    </>
   )
 }
 
@@ -374,11 +378,12 @@ function PromoCard({ promo, index }: { promo: PromoItem; index: number }) {
 }
 
 // ===== Action Catalog Item =====
-function ActionCatalogItem({ action, cost, balance, onSpend }: {
+function ActionCatalogItem({ action, cost, balance, onSpend, onInfoClick }: {
   action: PremiumAction
   cost: number
   balance: number
   onSpend: (action: PremiumAction, cost: number) => void
+  onInfoClick: (action: PremiumAction) => void
 }) {
   const { t } = useT()
   const label = ACTION_LABELS[action]
@@ -399,10 +404,18 @@ function ActionCatalogItem({ action, cost, balance, onSpend }: {
   }
 
   return (
-    <motion.button
+    <motion.div
+      role="button"
+      tabIndex={0}
       whileTap={{ scale: insufficient ? 0.97 : 0.95 }}
       whileHover={{ scale: 1.03 }}
       onClick={handleClick}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          handleClick()
+        }
+      }}
       animate={shaking ? {
         x: [0, -4, 4, -4, 4, -2, 2, 0],
         transition: { duration: 0.5 }
@@ -414,6 +427,26 @@ function ActionCatalogItem({ action, cost, balance, onSpend }: {
           : 'border-border/30 bg-card/60 hover:border-amber-500/30 hover:bg-amber-500/5 cursor-pointer'
       )}
     >
+      {/* Information Button — using div to avoid nested interactive elements */}
+      <div
+        role="button"
+        tabIndex={0}
+        aria-label="Informations sur cette action"
+        onClick={(e) => {
+          e.stopPropagation()
+          onInfoClick(action)
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.stopPropagation()
+            onInfoClick(action)
+          }
+        }}
+        className="absolute top-1.5 right-1.5 z-20 flex h-4.5 w-4.5 items-center justify-center rounded-full bg-white/10 hover:bg-white/20 border border-white/10 text-white/80 hover:text-white transition-colors cursor-pointer"
+      >
+        <span className="text-[9px] font-black">i</span>
+      </div>
+
       {/* Insufficient balance shimmer indicator */}
       {insufficient && (
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -427,7 +460,7 @@ function ActionCatalogItem({ action, cost, balance, onSpend }: {
 
       <span className="text-xl relative z-10">{label.emoji}</span>
       <span className={cn(
-        'text-[10px] font-semibold leading-tight line-clamp-2 relative z-10',
+        'text-[10px] font-semibold leading-tight line-clamp-2 relative z-10 pr-2',
         insufficient && 'text-red-400/90'
       )}>
         {label.name}
@@ -456,7 +489,336 @@ function ActionCatalogItem({ action, cost, balance, onSpend }: {
           <span className="text-[8px] font-bold text-green-400">OK</span>
         </div>
       )}
-    </motion.button>
+    </motion.div>
+  )
+}
+
+// ===== Premium Action Previews Data =====
+const ACTION_PREVIEWS: Record<PremiumAction, {
+  title: string
+  description: string
+  advantage: string
+  gradient: string
+  icon: string
+}> = {
+  boost: {
+    title: 'Boost Visibilité',
+    description: 'Propulse ton profil en tête de liste pour tous les utilisateurs proches de toi pendant 30 minutes.',
+    advantage: 'Multiplier par 10 tes chances de recevoir des demandes de numéro !',
+    gradient: 'from-orange-500 to-amber-500',
+    icon: '🚀',
+  },
+  super_request: {
+    title: 'Super Demande',
+    description: 'Envoie une demande de numéro dorée et ultra-visible qui apparaît tout en haut de la liste de ton destinataire.',
+    advantage: 'Attirer immédiatement l\'attention et obtenir 3 fois plus de réponses positives !',
+    gradient: 'from-pink-500 to-rose-600',
+    icon: '⭐',
+  },
+  rose_connect: {
+    title: 'Rose Connect',
+    description: 'Envoie une rose virtuelle animée avec un message doux pour déclarer ton coup de cœur.',
+    advantage: 'Montrer un intérêt sincère et unique qui te démarque des autres profils.',
+    gradient: 'from-red-500 to-rose-500',
+    icon: '🌹',
+  },
+  extra_request: {
+    title: 'Demande Supplémentaire',
+    description: 'Débloque une demande de numéro en plus de ta limite quotidienne gratuite.',
+    advantage: 'Ne pas laisser passer ta chance avec un profil coup de cœur aujourd\'hui !',
+    gradient: 'from-violet-500 to-fuchsia-500',
+    icon: '📱',
+  },
+  see_visitors: {
+    title: 'Voir les Visiteurs',
+    description: 'Découvre instantanément qui a visité ton profil au cours des dernières 24 heures.',
+    advantage: 'Savoir exactement qui s\'intéresse déjà à toi pour faire le premier pas en confiance.',
+    gradient: 'from-indigo-500 to-purple-600',
+    icon: '👁️',
+  },
+  read_receipt: {
+    title: 'Accusé de Lecture',
+    description: 'Sache à quel moment précis tes messages ont été ouverts et lus par tes contacts.',
+    advantage: 'Ne plus rester dans le doute et mieux comprendre le rythme de ta discussion.',
+    gradient: 'from-sky-500 to-blue-600',
+    icon: '✓',
+  },
+  filters_plus: {
+    title: 'Filtres Connect+',
+    description: 'Filtre tes résultats par critères précis : taille, centres d\'intérêt, études et plus encore.',
+    advantage: 'Trouver directement des profils qui te correspondent à 100% sans perdre de temps.',
+    gradient: 'from-emerald-500 to-teal-600',
+    icon: '🔍',
+  },
+  ghost_mode: {
+    title: 'Mode Fantôme',
+    description: 'Visite les profils et regarde leurs informations en toute discrétion, sans laisser aucune trace.',
+    advantage: 'Naviguer à ton rythme sans pression et en protégeant totalement ta vie privée.',
+    gradient: 'from-slate-600 to-neutral-800',
+    icon: '👻',
+  },
+  undo_pass: {
+    title: 'Annuler un Pass',
+    description: 'Reviens sur le dernier profil que tu as swipé à gauche pour changer de décision.',
+    advantage: 'Corriger instantanément une erreur de manipulation et ne louper aucune belle rencontre.',
+    gradient: 'from-amber-500 to-orange-600',
+    icon: '↩️',
+  },
+  theme_flame: {
+    title: 'Thème Flamme',
+    description: 'Ajoute un superbe cadre de flamme animé autour de ton avatar sur ton profil.',
+    advantage: 'Rendre ton profil irrésistiblement chaud et attirer l\'œil instantanément.',
+    gradient: 'from-red-600 to-orange-500',
+    icon: '🔥',
+  },
+  theme_star: {
+    title: 'Thème Étoile',
+    description: 'Décore ton avatar d\'un halo d\'étoiles dorées et scintillantes.',
+    advantage: 'Faire rayonner ton profil et montrer que tu es une vraie star sur l\'application.',
+    gradient: 'from-yellow-400 to-amber-500',
+    icon: '⭐',
+  },
+  theme_aura: {
+    title: 'Thème Aura',
+    description: 'Décore ton profil avec un halo mystique et coloré aux reflets violets et bleus.',
+    advantage: 'Donner une atmosphère magique, élégante et premium à ton avatar.',
+    gradient: 'from-purple-600 to-indigo-500',
+    icon: '✨',
+  },
+  custom_badge: {
+    title: 'Badge Personnalisé',
+    description: 'Écris un court texte ou insère des émojis personnalisés directement affichés sur ton profil.',
+    advantage: 'Exprimer ton humeur ou ton statut unique directement sur ta photo.',
+    gradient: 'from-rose-500 to-pink-500',
+    icon: '🏷️',
+  },
+  request_animation: {
+    title: 'Animation de Demande',
+    description: 'Déclenche une pluie d\'effets magiques et d\'étoiles filantes sur l\'écran du destinataire lors de ta demande.',
+    advantage: 'Créer une surprise inoubliable dès la première seconde de connexion.',
+    gradient: 'from-purple-500 to-pink-600',
+    icon: '💫',
+  },
+}
+
+function PremiumActionPreviewDialog({
+  action,
+  onClose,
+  onSpend,
+  balance,
+}: {
+  action: PremiumAction | null
+  onClose: () => void
+  onSpend: (action: PremiumAction, cost: number) => void
+  balance: number
+}) {
+  const { actionConfigs } = useConnectCoinStore()
+  if (!action) return null
+
+  const info = ACTION_PREVIEWS[action]
+  if (!info) return null
+
+  const cost = actionConfigs && actionConfigs[action] ? actionConfigs[action].costCC : ACTION_COSTS[action]
+
+  return (
+    <Dialog open={!!action} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-[340px] rounded-3xl bg-neutral-900 border border-neutral-800 text-white p-5 overflow-hidden">
+        <DialogHeader className="p-0 space-y-1">
+          <DialogTitle className="text-xl font-black text-center flex items-center justify-center gap-2">
+            <span>{info.icon}</span> {info.title}
+          </DialogTitle>
+          <DialogDescription className="text-xs text-center text-white/60">
+            Aperçu de l'action premium
+          </DialogDescription>
+        </DialogHeader>
+
+        {/* Visual Preview Area */}
+        <div className="my-4 flex items-center justify-center">
+          <div className="relative w-[180px] h-[180px] rounded-2xl bg-neutral-950 border border-white/5 flex items-center justify-center overflow-hidden">
+            {/* Ambient glow */}
+            <div className={`absolute -inset-10 bg-gradient-to-tr ${info.gradient} opacity-10 blur-2xl animate-pulse`} />
+
+            {/* Visual simulation content depending on action */}
+            {action === 'boost' && (
+              <div className="flex flex-col items-center justify-center gap-2">
+                <motion.div
+                  animate={{ y: [0, -10, 0] }}
+                  transition={{ repeat: Infinity, duration: 2, ease: 'easeInOut' }}
+                  className="text-5xl"
+                >
+                  🚀
+                </motion.div>
+                <div className="flex flex-col items-center">
+                  <div className="h-2 w-16 bg-orange-500/20 border border-orange-500/40 rounded-full overflow-hidden">
+                    <motion.div
+                      className="h-full bg-gradient-to-r from-orange-500 to-yellow-400"
+                      animate={{ width: ['0%', '100%'] }}
+                      transition={{ duration: 2, repeat: Infinity }}
+                    />
+                  </div>
+                  <span className="text-[9px] text-orange-400 font-bold uppercase tracking-widest mt-1">Boosté 10x</span>
+                </div>
+              </div>
+            )}
+
+            {action === 'super_request' && (
+              <div className="flex flex-col items-center justify-center gap-1.5 p-2 bg-gradient-to-br from-yellow-500/10 to-amber-500/20 border border-yellow-500/30 rounded-xl">
+                <span className="text-3xl">⭐</span>
+                <span className="text-[10px] font-bold text-yellow-400 text-center uppercase tracking-wider">Demande Étoilée</span>
+                <div className="text-[8px] text-white/70 text-center leading-tight">Placée tout en haut des demandes reçues !</div>
+              </div>
+            )}
+
+            {action === 'rose_connect' && (
+              <div className="flex flex-col items-center justify-center gap-2">
+                <motion.div
+                  animate={{ scale: [1, 1.2, 1], rotate: [0, 5, -5, 0] }}
+                  transition={{ repeat: Infinity, duration: 3 }}
+                  className="text-5xl drop-shadow-[0_0_15px_rgba(239,68,68,0.5)]"
+                >
+                  🌹
+                </motion.div>
+                <span className="text-[9px] text-red-400 font-bold tracking-wider">Rose Connect envoyée</span>
+              </div>
+            )}
+
+            {(action === 'theme_flame' || action === 'theme_star' || action === 'theme_aura') && (
+              <div className="relative">
+                {/* Avatar with theme border */}
+                <div className="relative h-20 w-20 rounded-full flex items-center justify-center overflow-hidden z-10">
+                  <img src="https://i.pravatar.cc/100?img=47" alt="Mock profile" className="h-full w-full object-cover" />
+                </div>
+                {/* Frame overlay */}
+                {action === 'theme_flame' && (
+                  <div className="absolute -inset-1.5 rounded-full border-2 border-red-500 animate-pulse drop-shadow-[0_0_8px_rgba(239,68,68,0.8)] z-20 pointer-events-none animate-bounce" />
+                )}
+                {action === 'theme_star' && (
+                  <div className="absolute -inset-1.5 rounded-full border-2 border-yellow-400 animate-pulse drop-shadow-[0_0_8px_rgba(250,204,21,0.8)] z-20 pointer-events-none" />
+                )}
+                {action === 'theme_aura' && (
+                  <div className="absolute -inset-1.5 rounded-full border-2 border-purple-500 animate-pulse drop-shadow-[0_0_8px_rgba(168,85,247,0.8)] z-20 pointer-events-none" />
+                )}
+              </div>
+            )}
+
+            {action === 'custom_badge' && (
+              <div className="relative flex flex-col items-center justify-center">
+                <div className="h-16 w-16 rounded-full overflow-hidden border border-white/10 mb-1">
+                  <img src="https://i.pravatar.cc/100?img=33" alt="Mock" className="h-full w-full object-cover" />
+                </div>
+                <div className="rounded-full bg-gradient-to-r from-pink-500 to-rose-500 border border-pink-400 px-2 py-0.5 text-[8px] font-black text-white uppercase tracking-wider">
+                  ✨ Célibataire ✨
+                </div>
+              </div>
+            )}
+
+            {action === 'ghost_mode' && (
+              <div className="flex flex-col items-center justify-center gap-2">
+                <motion.div
+                  animate={{ opacity: [0.3, 1, 0.3] }}
+                  transition={{ repeat: Infinity, duration: 2.5 }}
+                  className="text-5xl"
+                >
+                  👻
+                </motion.div>
+                <span className="text-[9px] text-neutral-400 font-bold uppercase tracking-widest">Invisible activé</span>
+              </div>
+            )}
+
+            {action === 'see_visitors' && (
+              <div className="flex flex-col items-center justify-center gap-1.5">
+                <span className="text-3xl">👁️</span>
+                <span className="text-[9px] text-indigo-400 font-bold uppercase tracking-wide">Qui visite mon profil ?</span>
+                <div className="flex gap-1">
+                  <div className="w-6 h-6 rounded-full bg-neutral-800 border border-white/5 blur-[2px]" />
+                  <div className="w-6 h-6 rounded-full bg-neutral-800 border border-white/5 blur-[2px]" />
+                  <div className="w-6 h-6 rounded-full bg-neutral-800 border border-white/5 blur-[2px]" />
+                </div>
+              </div>
+            )}
+
+            {action === 'read_receipt' && (
+              <div className="flex flex-col gap-1 w-[120px] bg-neutral-900 border border-white/5 p-2 rounded-xl">
+                <div className="bg-neutral-800 text-[8px] p-1 rounded self-start max-w-[80px]">Coucou !</div>
+                <div className="bg-primary/20 text-[8px] p-1 rounded self-end max-w-[80px] text-right flex flex-col items-end gap-0.5">
+                  <span>Ça va ?</span>
+                  <span className="text-[7px] text-blue-400 font-bold flex items-center gap-0.5">Lu ✓✓</span>
+                </div>
+              </div>
+            )}
+
+            {action === 'filters_plus' && (
+              <div className="flex flex-col items-center justify-center gap-1">
+                <span className="text-3xl">🔍</span>
+                <span className="text-[9px] text-emerald-400 font-bold uppercase">Filtres connect+</span>
+                <span className="text-[8px] text-white/60 text-center">Taille, Signe astro, Emploi...</span>
+              </div>
+            )}
+
+            {action === 'undo_pass' && (
+              <div className="flex flex-col items-center justify-center gap-1">
+                <span className="text-3xl">↩️</span>
+                <span className="text-[9px] text-amber-500 font-bold uppercase">Annuler pass</span>
+                <span className="text-[8px] text-white/60 text-center">Récupère ton swipe gauche !</span>
+              </div>
+            )}
+
+            {action === 'extra_request' && (
+              <div className="flex flex-col items-center justify-center gap-1">
+                <span className="text-3xl">📱</span>
+                <span className="text-[9px] text-violet-400 font-bold uppercase">Demande bonus</span>
+                <span className="text-[8px] text-white/60 text-center">Plus de limites gratuites.</span>
+              </div>
+            )}
+
+            {action === 'request_animation' && (
+              <div className="flex flex-col items-center justify-center gap-1">
+                <span className="text-3xl">💫</span>
+                <span className="text-[9px] text-fuchsia-400 font-bold uppercase">Effet magique</span>
+                <span className="text-[8px] text-white/60 text-center">Animation plein écran !</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Text descriptions */}
+        <div className="space-y-3">
+          <div className="rounded-2xl bg-white/5 border border-white/10 p-3">
+            <p className="text-xs font-medium text-white/90 leading-relaxed text-center">
+              {info.description}
+            </p>
+          </div>
+
+          <div className="rounded-2xl bg-amber-500/10 border border-amber-500/20 p-3">
+            <h4 className="text-[10px] font-black text-amber-400 uppercase tracking-wider mb-0.5 text-center">
+              💡 L'avantage pour ton profil
+            </h4>
+            <p className="text-xs font-bold text-amber-300 text-center leading-relaxed">
+              {info.advantage}
+            </p>
+          </div>
+        </div>
+
+        {/* Button footer */}
+        <div className="mt-5 space-y-2">
+          <Button
+            onClick={() => onSpend(action, cost)}
+            className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-black font-black text-sm h-12 rounded-2xl flex items-center justify-center gap-2"
+          >
+            <span>Activer pour {cost} CC</span>
+            <Coins className="size-4 text-black fill-current" />
+          </Button>
+
+          <Button
+            variant="ghost"
+            onClick={onClose}
+            className="w-full text-white/60 hover:text-white text-xs h-10 hover:bg-white/5 rounded-xl"
+          >
+            Fermer l'aperçu
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -516,53 +878,48 @@ function PurchaseConfirmDialog({
   onClose,
   onConfirm,
 }: {
-  pack: typeof PACKS[number] | null
+  pack: PackLocalPrice | null
   open: boolean
   onClose: () => void
-  onConfirm: () => void
+  onConfirm: () => Promise<boolean>
 }) {
   const { t } = useT()
   const [processing, setProcessing] = useState(false)
-  const [success, setSuccess] = useState(false)
 
   if (!pack) return null
 
   const handleConfirm = async () => {
     setProcessing(true)
-    await onConfirm()
-    setProcessing(false)
-    setSuccess(true)
-    setTimeout(() => {
-      setSuccess(false)
-      onClose()
-    }, 1500)
+    const ok = await onConfirm()
+    if (!ok) {
+      setProcessing(false)
+    }
   }
 
   return (
-    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+    <Dialog open={open} onOpenChange={(v) => !v && !processing && onClose()}>
       <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-sm rounded-2xl border-border/50 bg-card/95 backdrop-blur-xl">
         <DialogTitle className="sr-only">{pack ? t('store.packName', { name: pack.name }) : 'Chargement...'}</DialogTitle>
         <DialogDescription className="sr-only">{pack ? t('store.confirmPurchase', { n: pack.cc + pack.bonusCC }) : ''}</DialogDescription>
         <AnimatePresence mode="wait">
-          {success ? (
+          {processing ? (
             <motion.div
-              key="success"
+              key="processing"
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0 }}
-              className="flex flex-col items-center justify-center py-8"
+              className="flex flex-col items-center justify-center py-8 text-center"
             >
               <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-                className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-500/20"
+                animate={{ rotate: 360 }}
+                transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
+                className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-amber-500/10 border-2 border-dashed border-amber-500"
               >
-                <CheckCircle2 className="size-8 text-green-400" />
+                <Coins className="size-8 text-amber-400" />
               </motion.div>
-              <h3 className="text-lg font-bold text-green-400">{t('store.purchaseSuccess')}</h3>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {t('store.ccAdded', { n: pack.cc + pack.bonusCC })}
+              <h3 className="text-base font-bold text-amber-400">Préparation du paiement...</h3>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Nous vous redirigeons vers My-CoolPay pour finaliser votre achat en toute sécurité.
               </p>
             </motion.div>
           ) : (
@@ -596,7 +953,7 @@ function PurchaseConfirmDialog({
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">{t('store.price')}</span>
-                    <span className="font-bold">{pack.price}</span>
+                    <span className="font-bold">{pack.priceFormatted}</span>
                   </div>
                 </div>
 
@@ -619,7 +976,7 @@ function PurchaseConfirmDialog({
                     ) : (
                       <>
                         <ShoppingCart className="mr-1.5 size-4" />
-                        {t('store.buyPrice', { price: pack.price })}
+                        {t('store.buyPrice', { price: pack.priceFormatted })}
                       </>
                     )}
                   </Button>
@@ -645,6 +1002,7 @@ export default function CreditStore() {
     challenges,
     level,
     streak,
+    actionConfigs,
     purchasePack,
     fetchBalance,
     fetchHistory,
@@ -657,22 +1015,24 @@ export default function CreditStore() {
     setSelectedPackType,
   } = useConnectCoinStore()
   const currentUser = useAppStore((s) => s.currentUser)
+  const { packPrices } = useCurrencyStore()
 
-  const [selectedPack, setSelectedPack] = useState<typeof PACKS[number] | null>(null)
+  const [selectedPack, setSelectedPack] = useState<PackLocalPrice | null>(null)
   const [activeSection, setActiveSection] = useState<'packs' | 'actions' | 'history'>('actions')
   const [dataLoaded, setDataLoaded] = useState(false)
+  const [previewAction, setPreviewAction] = useState<PremiumAction | null>(null)
 
   // Auto-select pack when coming from insufficient balance dialog
   useEffect(() => {
     if (selectedPackType && showCreditStore) {
       setActiveSection('packs') // Navigate to packs tab
-      const pack = PACKS.find(p => p.type === selectedPackType)
+      const pack = packPrices.find(p => p.type === selectedPackType)
       if (pack) {
         setSelectedPack(pack)
       }
       setSelectedPackType(null) // Reset after use
     }
-  }, [selectedPackType, showCreditStore, setSelectedPackType])
+  }, [selectedPackType, showCreditStore, setSelectedPackType, packPrices])
 
   // Load data when store opens
   useEffect(() => {
@@ -690,7 +1050,7 @@ export default function CreditStore() {
     }
   }, [showCreditStore, currentUser, dataLoaded, fetchBalance, fetchHistory, fetchPromos, fetchChallenges])
 
-  const handlePurchase = async (pack: typeof PACKS[number]) => {
+  const handlePurchase = async (pack: PackLocalPrice) => {
     setSelectedPack(pack)
   }
 
@@ -708,6 +1068,11 @@ export default function CreditStore() {
       const success = await spendCredits(currentUser.id, action)
       if (!success) throw new Error('Échec de la dépense')
     })
+  }
+
+  const handleSpendActionFromPreview = (action: PremiumAction, cost: number) => {
+    setPreviewAction(null)
+    handleSpendAction(action, cost)
   }
 
   // Categorize actions
@@ -808,9 +1173,10 @@ export default function CreditStore() {
                           <ActionCatalogItem
                             key={action}
                             action={action}
-                            cost={ACTION_COSTS[action]}
+                            cost={actionConfigs && actionConfigs[action] ? actionConfigs[action].costCC : ACTION_COSTS[action]}
                             balance={balance}
                             onSpend={handleSpendAction}
+                            onInfoClick={(act) => setPreviewAction(act)}
                           />
                         ))}
                       </div>
@@ -863,7 +1229,7 @@ export default function CreditStore() {
                       <ShoppingCart className="size-3 text-amber-400" /> {t('store.buyCC')}
                     </h3>
                     <div className="space-y-2.5">
-                      {PACKS.map((pack, i) => (
+                      {packPrices.map((pack, i) => (
                         <PackCard
                           key={pack.type}
                           pack={pack}
@@ -920,6 +1286,14 @@ export default function CreditStore() {
         open={!!selectedPack}
         onClose={() => setSelectedPack(null)}
         onConfirm={confirmPurchase}
+      />
+
+      {/* Premium Action Preview Dialog */}
+      <PremiumActionPreviewDialog
+        action={previewAction}
+        onClose={() => setPreviewAction(null)}
+        onSpend={handleSpendActionFromPreview}
+        balance={balance}
       />
     </>
   )

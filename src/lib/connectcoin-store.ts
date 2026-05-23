@@ -85,10 +85,12 @@ interface ConnectCoinState {
   showSpendConfirm: { action: PremiumAction; cost: number; onConfirm: () => void } | null
   showInsufficientBalance: { action: PremiumAction; cost: number } | null
   selectedPackType: PackType | 'packs' | 'starter' | null
+  actionConfigs: Record<string, { durationMinutes: number; costCC: number; isEnabled: boolean; label: string; emoji: string }> | null
   isLoading: boolean
 
   // Actions
   fetchBalance: (userId: string) => Promise<void>
+  fetchConfigs: () => Promise<void>
   purchasePack: (userId: string, packType: PackType) => Promise<boolean>
   spendCredits: (userId: string, action: PremiumAction, metadata?: Record<string, string>) => Promise<boolean>
   claimDailyFree: (userId: string) => Promise<{ amount: number; hasSharedGift?: boolean; sharedGiftAmount?: number } | null>
@@ -203,7 +205,32 @@ export const useConnectCoinStore = create<ConnectCoinState>()(
       showSpendConfirm: null,
       showInsufficientBalance: null,
       selectedPackType: null,
+      actionConfigs: null,
       isLoading: false,
+
+      fetchConfigs: async () => {
+        try {
+          const res = await fetch('/api/credits/active-features/configs')
+          if (res.ok) {
+            const data = await res.json()
+            if (data.configs) {
+              const configMap: Record<string, any> = {}
+              data.configs.forEach((c: any) => {
+                configMap[c.action] = {
+                  durationMinutes: c.durationMinutes,
+                  costCC: c.costCC,
+                  isEnabled: c.isEnabled,
+                  label: c.label,
+                  emoji: c.emoji,
+                }
+              })
+              set({ actionConfigs: configMap })
+            }
+          }
+        } catch (err) {
+          console.error('fetchConfigs error:', err)
+        }
+      },
 
       fetchBalance: async (userId: string) => {
         set({ isLoading: true })
@@ -228,10 +255,11 @@ export const useConnectCoinStore = create<ConnectCoinState>()(
             isLoading: false,
           })
 
-          // Also fetch level and streak in parallel
+          // Also fetch level, streak and configs in parallel
           const [levelRes, streakRes] = await Promise.all([
             fetch(`/api/credits/level?userId=${userId}`),
             fetch(`/api/credits/streak?userId=${userId}`),
+            get().fetchConfigs(),
           ])
 
           if (levelRes.ok) {
@@ -273,19 +301,40 @@ export const useConnectCoinStore = create<ConnectCoinState>()(
 
       purchasePack: async (userId: string, packType: PackType) => {
         try {
-          const res = await fetch('/api/credits/purchase', {
+          // Dynamically import to avoid potential circular dependency issues
+          const { useCurrencyStore } = await import('./currency-store')
+          const currencyState = useCurrencyStore.getState()
+          const currencyCode = currencyState.currencyCode
+          const countryCode = currencyState.countryCode
+          
+          // Find the matching local pack price
+          const localPack = currencyState.packPrices.find((p) => p.type === packType)
+          const localPrice = localPack ? localPack.rawLocalPrice : undefined
+          const priceFormatted = localPack ? localPack.priceFormatted : undefined
+
+          const res = await fetch('/api/payments/initiate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId, packType }),
+            body: JSON.stringify({
+              userId,
+              packType,
+              currencyCode,
+              countryCode,
+              localPrice,
+              priceFormatted,
+            }),
           })
           const data = await res.json()
           if (data.error) {
-            console.error('Purchase error:', data.error)
+            console.error('Payment initiation error:', data.error)
             return false
           }
-          // Refresh balance
-          await get().fetchBalance(userId)
-          return true
+          // Rediriger vers CoolPay
+          if (data.paymentUrl) {
+            window.location.href = data.paymentUrl
+            return true
+          }
+          return false
         } catch (err) {
           console.error('purchasePack error:', err)
           return false
@@ -322,8 +371,13 @@ export const useConnectCoinStore = create<ConnectCoinState>()(
             }
           }
 
-          // Refresh balance
-          await get().fetchBalance(userId)
+          // Update balance locally instead of refetching everything
+          if (data.balance !== undefined) {
+            const spentAmount = data.transaction ? Math.abs(data.transaction.amount) : ACTION_COSTS[action];
+            set({ balance: data.balance, totalSpent: get().totalSpent + spentAmount })
+          } else {
+            await get().fetchBalance(userId)
+          }
           return true
         } catch (err) {
           console.error('spendCredits error:', err)
@@ -345,9 +399,18 @@ export const useConnectCoinStore = create<ConnectCoinState>()(
             }
             return null
           }
-          set({ dailyFreeClaimed: true })
-          // Refresh balance
-          await get().fetchBalance(userId)
+          
+          // Mettre à jour l'état local au lieu de refaire 4 requêtes (optimisation)
+          if (data.claimed || data.amount) {
+            set((state) => ({ 
+              dailyFreeClaimed: true,
+              balance: data.newBalance !== undefined ? data.newBalance : state.balance + (data.amount ?? 3),
+              totalEarned: state.totalEarned + (data.amount ?? 3)
+            }))
+          } else {
+            set({ dailyFreeClaimed: true })
+          }
+          
           return {
             amount: data.amount ?? 3,
             hasSharedGift: data.hasSharedGift,
@@ -373,8 +436,29 @@ export const useConnectCoinStore = create<ConnectCoinState>()(
             }
             return
           }
-          // Refresh balance and streak
-          await get().fetchBalance(userId)
+          
+          // Mettre à jour l'état local au lieu de refaire 4 requêtes (optimisation)
+          if (data.success) {
+            set((state) => {
+              const newStreak = state.streak ? {
+                ...state.streak,
+                currentStreak: data.currentStreak ?? state.streak.currentStreak,
+                longestStreak: data.longestStreak ?? state.streak.longestStreak,
+                todayBonusClaimed: true,
+                lastCheckIn: new Date().toISOString()
+              } : null;
+              
+              // Si un palier a offert des CC, on met à jour la balance
+              const milestoneCC = data.milestoneReward?.bonusCC || 0;
+              const newBalance = state.balance + milestoneCC;
+              const newTotalEarned = state.totalEarned + milestoneCC;
+              
+              return { 
+                streak: newStreak,
+                ...(milestoneCC > 0 ? { balance: newBalance, totalEarned: newTotalEarned } : {})
+              }
+            });
+          }
         } catch (err) {
           console.error('checkInStreak error:', err)
         }
@@ -453,7 +537,8 @@ export const useConnectCoinStore = create<ConnectCoinState>()(
 
       // Smart spend action: check balance first, show insufficient dialog if needed
       trySpendAction: (action: PremiumAction, onConfirm: () => void) => {
-        const cost = ACTION_COSTS[action]
+        const configs = get().actionConfigs
+        const cost = configs && configs[action] ? configs[action].costCC : ACTION_COSTS[action]
         const currentBalance = get().balance
         if (currentBalance < cost) {
           // Show insufficient balance dialog with redirect option

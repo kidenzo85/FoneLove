@@ -52,6 +52,30 @@ export async function POST(req: NextRequest) {
       },
     })
 
+    // Send push notification asynchronously
+    if (sender) {
+      // 1. In-App Notification
+      prisma.appNotification.create({
+        data: {
+          userId: receiverId,
+          type: 'number_request',
+          title: '📞 Demande de numéro !',
+          body: `${sender.firstName} aimerait avoir ton numéro.`,
+          url: '/?tab=requests',
+        }
+      }).catch(err => console.error('[Requests API] AppNotification create failed:', err))
+
+      // 2. Push Notification
+      import('@/lib/push-service').then(({ sendPushToUser }) => {
+        sendPushToUser(receiverId, {
+          title: '📞 Demande de numéro !',
+          body: `${sender.firstName} aimerait avoir ton numéro.`,
+          type: 'request',
+          url: '/?tab=requests'
+        })
+      }).catch(err => console.error('[Requests API] Push trigger failed:', err))
+    }
+
     return NextResponse.json({
       request: {
         ...mapRequest(request),
@@ -190,6 +214,51 @@ export async function PUT(req: NextRequest) {
         },
       })
     }
+
+    // Send push notification asynchronously for status updates
+    prisma.user.findUnique({
+      where: { id: request.receiverId },
+      select: { firstName: true }
+    }).then(async (receiver) => {
+      if (receiver) {
+        const { sendPushToUser } = await import('@/lib/push-service')
+        if (status === 'accepted') {
+          prisma.appNotification.create({
+            data: {
+              userId: request.senderId,
+              type: 'request_accepted',
+              title: '🎉 Demande acceptée !',
+              body: `${receiver.firstName} a partagé son numéro avec toi !`,
+              url: '/?tab=requests',
+            }
+          }).catch(err => console.error('[Requests PUT API] AppNotification create failed:', err))
+
+          await sendPushToUser(request.senderId, {
+            title: '🎉 Demande acceptée !',
+            body: `${receiver.firstName} a partagé son numéro avec toi !`,
+            type: 'request',
+            url: '/?tab=requests'
+          })
+        } else if (status === 'declined') {
+          prisma.appNotification.create({
+            data: {
+              userId: request.senderId,
+              type: 'request_declined',
+              title: '📞 Demande de numéro',
+              body: `Ta demande auprès de ${receiver.firstName} n'a pas abouti.`,
+              url: '/?tab=requests',
+            }
+          }).catch(err => console.error('[Requests PUT API] AppNotification create failed:', err))
+
+          await sendPushToUser(request.senderId, {
+            title: '📞 Demande de numéro',
+            body: `Ta demande auprès de ${receiver.firstName} n'a pas abouti.`,
+            type: 'request',
+            url: '/?tab=requests'
+          })
+        }
+      }
+    }).catch(err => console.error('[Requests PUT API] Push trigger failed:', err))
 
     return NextResponse.json({
       request: mapRequest(request),

@@ -44,6 +44,6 @@ export async function GET(req: NextRequest) {
     })
   } catch (error) {
     console.error('Pending gifts GET error:', error)
-    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Erreur serveur' }, { status: 500 })
   }
 }

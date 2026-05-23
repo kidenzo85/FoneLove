@@ -50,6 +50,75 @@ export async function POST(req: NextRequest) {
       })
     }
 
+    // Send push notification asynchronously
+    prisma.user.findMany({
+      where: { id: { in: [senderId, receiverId] } },
+      select: { id: true, firstName: true }
+    }).then(async (users) => {
+      const sender = users.find(u => u.id === senderId)
+      const receiver = users.find(u => u.id === receiverId)
+      const { sendPushToUser } = await import('@/lib/push-service')
+      
+      if (isMutual) {
+        if (sender && receiver) {
+          // 1. In-App Notifications
+          await Promise.all([
+            prisma.appNotification.create({
+              data: {
+                userId: senderId,
+                type: 'match_mutual',
+                title: '❤️ Match mutuel !',
+                body: `C'est un match avec ${receiver.firstName} ! Écris-lui !`,
+                url: '/?tab=messages',
+              }
+            }),
+            prisma.appNotification.create({
+              data: {
+                userId: receiverId,
+                type: 'match_mutual',
+                title: '❤️ Match mutuel !',
+                body: `C'est un match avec ${sender.firstName} ! Écris-lui !`,
+                url: '/?tab=messages',
+              }
+            })
+          ]).catch(err => console.error('[Likes API] AppNotification create failed:', err))
+
+          // 2. Push Notifications
+          await sendPushToUser(senderId, {
+            title: '❤️ Match mutuel !',
+            body: `C'est un match avec ${receiver.firstName} ! Écris-lui !`,
+            type: 'match',
+            url: '/?tab=messages'
+          })
+          await sendPushToUser(receiverId, {
+            title: '❤️ Match mutuel !',
+            body: `C'est un match avec ${sender.firstName} ! Écris-lui !`,
+            type: 'match',
+            url: '/?tab=messages'
+          })
+        }
+      } else {
+        // 1. In-App Notification
+        prisma.appNotification.create({
+          data: {
+            userId: receiverId,
+            type: 'profile_liked',
+            title: '👀 Nouveau J\'aime !',
+            body: `Quelqu'un t'a envoyé un J'aime. Découvre vite qui c'est !`,
+            url: '/',
+          }
+        }).catch(err => console.error('[Likes API] AppNotification create failed:', err))
+
+        // 2. Push Notification
+        await sendPushToUser(receiverId, {
+          title: '👀 Nouveau J\'aime !',
+          body: `Quelqu'un t'a envoyé un J'aime. Découvre vite qui c'est !`,
+          type: 'match',
+          url: '/'
+        })
+      }
+    }).catch(err => console.error('[Likes API] Push trigger failed:', err))
+
     return NextResponse.json({ liked: true, isMutual, like })
   } catch (error) {
     console.error('Like POST error:', error)

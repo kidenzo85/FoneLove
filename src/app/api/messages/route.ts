@@ -83,6 +83,10 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ conversation })
     }
 
+    if (!userId) {
+      return NextResponse.json({ error: 'userId requis' }, { status: 400 })
+    }
+
     // Get all accepted/pending requests for this user that have messages
     const requests = await prisma.numberRequest.findMany({
       where: {
@@ -126,28 +130,28 @@ export async function GET(req: NextRequest) {
     // Group by other user
     const conversationMap = new Map()
 
-    for (const req of requests) {
-      const isSender = req.senderId === userId
-      const otherUser = isSender ? req.receiver : req.sender
+    for (const numReq of requests) {
+      const isSender = numReq.senderId === userId
+      const otherUser = isSender ? numReq.receiver : numReq.sender
       const otherUserId = otherUser.id
 
       if (!conversationMap.has(otherUserId)) {
         conversationMap.set(otherUserId, {
           otherUser,
-          primaryRequest: req,
-          allRequestIds: [req.id]
+          primaryRequest: numReq,
+          allRequestIds: [numReq.id]
         })
       } else {
         const entry = conversationMap.get(otherUserId)
-        entry.allRequestIds.push(req.id)
+        entry.allRequestIds.push(numReq.id)
         // Prefer accepted status or most recent
-        if (req.status === 'accepted' && entry.primaryRequest.status !== 'accepted') {
-          entry.primaryRequest = req
+        if (numReq.status === 'accepted' && entry.primaryRequest.status !== 'accepted') {
+          entry.primaryRequest = numReq
         }
       }
     }
 
-    const conversations = []
+    const conversations: any[] = []
     for (const [otherUserId, data] of conversationMap.entries()) {
       // Fetch all messages between these two users
       const messages = await prisma.message.findMany({
@@ -236,6 +240,24 @@ export async function POST(req: NextRequest) {
         type: type || 'text',
         expiresAt,
       },
+    })
+
+    // Send push notification asynchronously (fire and forget with safe error logging)
+    prisma.user.findUnique({
+      where: { id: senderId },
+      select: { firstName: true }
+    }).then(async (sender) => {
+      if (sender) {
+        const { sendPushToUser } = await import('@/lib/push-service')
+        await sendPushToUser(receiverId, {
+          title: `💬 ${sender.firstName}`,
+          body: content.startsWith('[') && content.endsWith(']') ? 'Nouveau message' : content,
+          type: 'message',
+          url: `/?tab=messages`
+        })
+      }
+    }).catch(err => {
+      console.error('[Messages API] Push trigger failed:', err)
     })
 
     return NextResponse.json({

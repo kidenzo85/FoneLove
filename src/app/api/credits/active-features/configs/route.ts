@@ -65,10 +65,28 @@ export async function GET() {
 export async function PUT(req: Request) {
   try {
     const body = await req.json()
-    const { action, durationMinutes, costCC, isEnabled } = body
+    const { action, durationMinutes, costCC, isEnabled, requesterId } = body
 
     if (!action) {
       return NextResponse.json({ error: 'Action is required' }, { status: 400 })
+    }
+
+    if (!requesterId) {
+      return NextResponse.json({ error: 'Non autorisé. Identifiant requis.' }, { status: 401 })
+    }
+
+    // Verify requester has admin rights
+    const requester = await prisma.user.findUnique({
+      where: { id: requesterId },
+    })
+
+    if (
+      !requester ||
+      (requester.role !== 'admin' &&
+        requester.role !== 'super_admin' &&
+        requester.email !== 'fabricewilliam73@gmail.com')
+    ) {
+      return NextResponse.json({ error: 'Non autorisé. Droits insuffisants.' }, { status: 403 })
     }
 
     const updated = await prisma.premiumActionConfig.update({

@@ -45,6 +45,9 @@ export default function ChatView({ conversation, onBack }: ChatViewProps) {
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const lastTypedRef = useRef<number>(0)
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const audioChunksRef = useRef<Blob[]>([])
+  const streamRef = useRef<MediaStream | null>(null)
   const remaining = 3 - messages.length
   const isAccepted = conversation.status === 'accepted'
   const otherUser = conversation.otherUser
@@ -309,15 +312,117 @@ export default function ChatView({ conversation, onBack }: ChatViewProps) {
     sendMessage(text)
   }
 
-  const handleMicPress = () => {
-    setIsRecording(true)
-    trigger('impact-medium')
+  const handleMicPress = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      streamRef.current = stream
+      const mediaRecorder = new MediaRecorder(stream)
+      mediaRecorderRef.current = mediaRecorder
+      audioChunksRef.current = []
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data)
+        }
+      }
+
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
+        if (audioBlob.size > 1000) {
+          await uploadAndSendVoiceMessage(audioBlob)
+        }
+        stream.getTracks().forEach(track => track.stop())
+      }
+
+      mediaRecorder.start()
+      setIsRecording(true)
+      if (typeof navigator !== 'undefined' && navigator.vibrate) {
+        navigator.vibrate(50)
+      }
+    } catch (err) {
+      console.error('Microphone access denied or error:', err)
+      alert('Veuillez autoriser l\'accès au microphone pour envoyer un message vocal.')
+    }
   }
 
   const handleMicRelease = () => {
     if (isRecording) {
       setIsRecording(false)
-      sendMessage('Voice Message', 'voice')
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        mediaRecorderRef.current.stop()
+      }
+    }
+  }
+
+  const handleCancelRecording = () => {
+    setIsRecording(false)
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      audioChunksRef.current = []
+      mediaRecorderRef.current.stop()
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop())
+    }
+  }
+
+  const uploadAndSendVoiceMessage = async (audioBlob: Blob) => {
+    if (remaining <= 0 && !isAccepted) return
+
+    // Optimistic update
+    const tempId = `msg-${Date.now()}`
+    const tempMsg: MessageItem = {
+      id: tempId,
+      senderId: currentUser?.id || '',
+      receiverId: otherUser?.id || '',
+      requestId: conversation.requestId,
+      content: URL.createObjectURL(audioBlob),
+      type: 'voice',
+      isRead: false,
+      createdAt: new Date().toISOString(),
+    }
+
+    setMessages(prev => [...prev, tempMsg])
+    setShowIceBreakers(false)
+    setShowSurpriseInput(false)
+    setJustSent(true)
+    trigger('message-sent')
+    setTimeout(() => setJustSent(false), 600)
+
+    try {
+      const formData = new FormData()
+      formData.append('file', audioBlob, 'voice.webm')
+      formData.append('senderId', currentUser?.id || '')
+      formData.append('receiverId', otherUser?.id || '')
+      if (conversation.requestId) {
+        formData.append('requestId', conversation.requestId)
+      }
+
+      const res = await fetch('/api/messages/voice', {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (!res.ok) {
+        const errorData = await res.json()
+        setMessages(prev => prev.filter(m => m.id !== tempId))
+        alert(errorData.error || 'Erreur lors de l\'envoi du message vocal')
+        return
+      }
+
+      const data = await res.json()
+      setMessages(prev => prev.map(m => m.id === tempId ? data.message : m))
+
+      const currentConversations = useAppStore.getState().conversations
+      const updatedConvs = currentConversations.map(c =>
+        c.requestId === conversation.requestId
+          ? { ...c, messages: [...c.messages.filter(m => m.id !== tempId), data.message], messageCount: c.messageCount + 1 }
+          : c
+      )
+      useAppStore.setState({ conversations: updatedConvs })
+
+    } catch (err) {
+      console.error('Send voice message error:', err)
+      setMessages(prev => prev.filter(m => m.id !== tempId))
     }
   }
 
@@ -540,7 +645,7 @@ export default function ChatView({ conversation, onBack }: ChatViewProps) {
                 <Button 
                   variant="ghost" 
                   className="text-white font-bold hover:bg-white/10 rounded-xl"
-                  onClick={() => setIsRecording(false)}
+                  onClick={handleCancelRecording}
                 >
                   {t('common.cancel')}
                 </Button>

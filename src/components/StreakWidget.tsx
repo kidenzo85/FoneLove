@@ -70,7 +70,7 @@ export default function StreakWidget({ streak: propStreak, compact = false }: St
       }
 
       // 2. Réclamer ensuite les pièces gratuites quotidiennes et déclencher le partage
-      let result = null
+      let result: any = null
       if (!dailyFreeClaimed) {
         result = await claimDailyFree(currentUser.id)
       }

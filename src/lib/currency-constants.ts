@@ -133,7 +133,7 @@ export const COUNTRY_CURRENCY: Record<string, string> = {
 // Groups: 'high' (100%), 'upper_mid' (75%), 'lower_mid' (55%), 'low' (40%)
 export type PPPGroup = 'high' | 'upper_mid' | 'lower_mid' | 'low'
 
-export const COUNTRY_PPP: Record<string, PPPGroup> = {
+export const COUNTRY_PPP: Record<PPPGroup, string> = {
   // High income (100% of base price)
   high: 'AT,BE,CA,DK,FI,FR,DE,IS,IE,IT,LU,NL,NO,SE,CH,GB,US,AU,NZ,JP,KR,SG,HK,TW,IL,AE,QA,KW',
   // Upper-middle income (75%)

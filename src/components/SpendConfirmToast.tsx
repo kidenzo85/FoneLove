@@ -41,7 +41,7 @@ export default function SpendConfirmToast() {
     if (!showSpendConfirm || processing) return
     setProcessing(true)
     try {
-      const result = await showSpendConfirm.onConfirm()
+      const result = await (showSpendConfirm.onConfirm as () => any)()
       // Only show success if the spend actually succeeded
       if (result === false) {
         setProcessing(false)
@@ -102,7 +102,7 @@ export default function SpendConfirmToast() {
                 </motion.div>
 
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-green-400">{label ? t(label.nameKey) : t('spendConfirm.actionCompleted')} !</p>
+                  <p className="text-sm font-bold text-green-400">{label ? label.name : t('spendConfirm.actionCompleted')} !</p>
                   {/* New balance — highlighted per spec */}
                   <div className="flex items-center gap-1.5 mt-0.5">
                     <Coins className="size-3.5 text-amber-400" />
@@ -156,8 +156,8 @@ export default function SpendConfirmToast() {
               <div className="flex items-center gap-3 px-4 py-3">
                 <span className="text-2xl">{label?.emoji}</span>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold truncate">{label ? t(label.nameKey) : ''}</p>
-                  <p className="text-[10px] text-muted-foreground truncate">{label ? t(label.descriptionKey) : ''}</p>
+                  <p className="text-sm font-bold truncate">{label ? label.name : ''}</p>
+                  <p className="text-[10px] text-muted-foreground truncate">{label ? label.description : ''}</p>
                 </div>
                 {/* Cost pill — discrete indicator per spec */}
                 <div className="flex items-center gap-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 px-2.5 py-1">
