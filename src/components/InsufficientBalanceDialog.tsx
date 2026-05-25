@@ -139,7 +139,11 @@ export default function InsufficientBalanceDialog() {
 
   return (
     <Dialog open={!!showInsufficientBalance} onOpenChange={(open) => !open && handleCancel()}>
-      <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-sm rounded-2xl border-border/50 bg-card/95 backdrop-blur-xl p-0 gap-0 overflow-hidden">
+      <DialogContent 
+        onInteractOutside={(e) => e.preventDefault()}
+        onCloseAutoFocus={(e) => e.preventDefault()}
+        className="max-w-[calc(100vw-2rem)] sm:max-w-sm rounded-2xl border-border/50 bg-card/95 backdrop-blur-xl p-0 gap-0 overflow-hidden"
+      >
         <DialogTitle className="sr-only">{t('insufficient.title')}</DialogTitle>
         <DialogDescription className="sr-only">{t('insufficient.subtitle')}</DialogDescription>
         <AnimatePresence mode="wait">

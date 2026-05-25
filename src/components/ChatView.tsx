@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Send, Phone, Mic, ArrowLeft, Clock, Sparkles, AlertCircle, Gift, Heart, Plus, Minus, ImageIcon } from 'lucide-react'
+import { Send, Phone, Mic, ArrowLeft, Clock, Sparkles, AlertCircle, Gift, Heart, Plus, Minus, ImageIcon, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -345,7 +345,7 @@ export default function ChatView({ conversation, onBack }: ChatViewProps) {
     }
   }
 
-  const handleMicRelease = () => {
+  const handleStopAndSend = () => {
     if (isRecording) {
       setIsRecording(false)
       if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
@@ -642,13 +642,23 @@ export default function ChatView({ conversation, onBack }: ChatViewProps) {
                     />
                   ))}
                 </div>
-                <Button 
-                  variant="ghost" 
-                  className="text-white font-bold hover:bg-white/10 rounded-xl"
-                  onClick={handleCancelRecording}
-                >
-                  {t('common.cancel')}
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button 
+                    variant="ghost" 
+                    className="text-white font-bold hover:bg-white/10 rounded-xl px-2 sm:px-4"
+                    onClick={handleCancelRecording}
+                  >
+                    <X className="size-5 sm:hidden" />
+                    <span className="hidden sm:inline">{t('common.cancel')}</span>
+                  </Button>
+                  <Button 
+                    onClick={handleStopAndSend}
+                    className="bg-white text-primary rounded-xl font-bold px-3 sm:px-4 hover:bg-white/90 shadow-sm"
+                  >
+                    <Send className="size-4 mr-1 sm:mr-2" />
+                    <span className="hidden sm:inline">Envoyer</span>
+                  </Button>
+                </div>
               </motion.div>
             ) : showSurpriseInput ? (
               <motion.div
@@ -756,15 +766,11 @@ export default function ChatView({ conversation, onBack }: ChatViewProps) {
                 ) : (
                   <motion.div 
                     className="relative shrink-0 mb-0"
-                    onMouseDown={handleMicPress}
-                    onMouseUp={handleMicRelease}
-                    onMouseLeave={handleMicRelease}
-                    onTouchStart={handleMicPress}
-                    onTouchEnd={handleMicRelease}
                   >
                     <Button 
                       size="icon" 
                       variant="ghost" 
+                      onClick={handleMicPress}
                       className={cn(
                         "h-[48px] w-[48px] rounded-full transition-all duration-300 border-0",
                         isRecording ? "bg-primary text-white scale-[1.3] shadow-lg shadow-primary/30" : "bg-primary/10 text-primary hover:bg-primary/20"

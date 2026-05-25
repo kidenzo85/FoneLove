@@ -43,10 +43,8 @@ export default function NotificationSubscribeCard() {
     // Check if dismissed in this session (only applicable for 'default' permission)
     const isDismissed = sessionStorage.getItem('notif_card_dismissed') === 'true'
     
-    // We always show the card on the Profile tab so the user can verify their status,
-    // unless it was explicitly dismissed in 'default' state.
     if (currentUser) {
-      if (Notification.permission !== 'default' || !isDismissed) {
+      if (Notification.permission === 'default' && !isDismissed) {
         const timer = setTimeout(() => setShowCard(true), 500)
         return () => clearTimeout(timer)
       }
@@ -85,6 +83,7 @@ export default function NotificationSubscribeCard() {
           })
           
           setSuccess(true)
+          setTimeout(() => setShowCard(false), 2500)
         }
       }
     } catch (error) {

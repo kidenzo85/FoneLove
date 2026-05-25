@@ -57,15 +57,12 @@ export default function NotificationOptInBanner() {
 
     console.log('[NotifBanner] Current permission:', Notification.permission)
 
-    // For testing: we comment out the strict checks so you can see the banner!
-    /*
     if (Notification.permission !== 'default') return
     const lastDismissed = localStorage.getItem('notif_banner_dismissed_at')
     if (lastDismissed) {
       const elapsed = Date.now() - parseInt(lastDismissed, 10)
       if (elapsed < 24 * 60 * 60 * 1000) return 
     }
-    */
 
     if (!currentUser) {
       console.log('[NotifBanner] Waiting for user to login...')

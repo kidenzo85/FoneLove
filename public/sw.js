@@ -259,9 +259,7 @@ function isUncacheableApi(url) {
   const p = url.pathname;
   return (
     p.startsWith('/api/payments/') ||
-    p.startsWith('/api/credits/spend') ||
-    p.startsWith('/api/credits/daily-free') ||
-    p.startsWith('/api/credits/streak') ||
+    p.startsWith('/api/credits/') ||
     p.startsWith('/api/fonelove/send') ||
     p.startsWith('/api/fonelove/recharge') ||
     p.startsWith('/api/fonelove/withdraw') ||

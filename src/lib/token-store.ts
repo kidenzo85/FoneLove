@@ -99,7 +99,7 @@ const otpStore = new Map<string, OtpEntry>()
 export function storeOtp(email: string, otp: string): void {
   otpStore.set(email, {
     otp,
-    expiresAt: Date.now() + 5 * 60 * 1000, // 5 minutes
+    expiresAt: Date.now() + 30 * 60 * 1000, // 30 minutes
     attempts: 0,
     lastRequestAt: Date.now(),
   })

@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Bell, X, CheckCheck, Gift, Heart, Phone, Info } from 'lucide-react'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
-import { useAppStore } from '@/store/useAppStore'
+import { useAppStore } from '@/lib/store'
 import { formatDistanceToNow } from 'date-fns'
 import { fr } from 'date-fns/locale'
 

@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * GET /api/credits/active-features/configs
  * Returns all premium action configurations (durations, costs, enabled state).
@@ -37,11 +39,26 @@ export async function GET() {
           isEnabled: true,
         })),
       })
+    }
 
-      configs = await prisma.premiumActionConfig.findMany({
-        orderBy: { action: 'asc' },
+    // Ensure post_moment exists (since it's a new feature we're adding to existing dbs)
+    const hasPostMoment = configs.some(c => c.action === 'post_moment')
+    if (!hasPostMoment) {
+      await prisma.premiumActionConfig.create({
+        data: {
+          action: 'post_moment',
+          durationMinutes: 1440, // 24h
+          costCC: 50,
+          label: 'Publier un Moment',
+          emoji: '📸',
+          isEnabled: true,
+        }
       })
     }
+
+    configs = await prisma.premiumActionConfig.findMany({
+      orderBy: { action: 'asc' },
+    })
 
     return NextResponse.json({
       configs: configs.map((c) => ({
@@ -64,6 +81,11 @@ export async function GET() {
 
 export async function PUT(req: Request) {
   try {
+    const adminSecret = req.headers.get('x-admin-secret')
+    if (process.env.ADMIN_SECRET && adminSecret !== process.env.ADMIN_SECRET) {
+      return NextResponse.json({ error: 'Non autorisé. Clé secrète invalide.' }, { status: 401 })
+    }
+
     const body = await req.json()
     const { action, durationMinutes, costCC, isEnabled, requesterId } = body
 

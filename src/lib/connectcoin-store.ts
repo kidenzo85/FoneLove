@@ -28,6 +28,15 @@ export interface TransactionItem {
   createdAt: string
 }
 
+export interface PaymentOrderItem {
+  id: string
+  packType: string
+  amountXAF: number
+  ccAmount: number
+  status: string
+  createdAt: string
+}
+
 export interface ChallengeItem {
   id: string
   type: string
@@ -79,6 +88,7 @@ interface ConnectCoinState {
   dailyFreeClaimed: boolean
   freeBoostClaimed: boolean
   transactions: TransactionItem[]
+  orders: PaymentOrderItem[]
   challenges: ChallengeItem[]
   promos: PromoItem[]
   showCreditStore: boolean
@@ -199,6 +209,7 @@ export const useConnectCoinStore = create<ConnectCoinState>()(
       dailyFreeClaimed: false,
       freeBoostClaimed: false,
       transactions: [],
+      orders: [],
       challenges: [],
       promos: [],
       showCreditStore: false,
@@ -483,7 +494,9 @@ export const useConnectCoinStore = create<ConnectCoinState>()(
           const res = await fetch(`/api/credits/promos?userId=${userId}`)
           const data = await res.json()
           if (data.error) {
-            console.error('Promos error:', data.error)
+            if (data.error !== 'offline') {
+              console.error('Promos error:', data.error)
+            }
             return
           }
           set({
@@ -509,7 +522,9 @@ export const useConnectCoinStore = create<ConnectCoinState>()(
           const res = await fetch(`/api/credits/history?userId=${userId}&page=${page ?? 1}&limit=20`)
           const data = await res.json()
           if (data.error) {
-            console.error('History error:', data.error)
+            if (data.error !== 'offline') {
+              console.error('History error:', data.error)
+            }
             return
           }
           set({
@@ -521,6 +536,7 @@ export const useConnectCoinStore = create<ConnectCoinState>()(
               description: t.description,
               createdAt: t.createdAt || t.date || new Date().toISOString(),
             })),
+            orders: data.orders ?? [],
           })
         } catch (err) {
           console.error('fetchHistory error:', err)

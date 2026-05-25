@@ -751,14 +751,18 @@ function InlineAuth() {
         })
         const data = await res.json()
         if (data.user) {
-          window.dispatchEvent(new CustomEvent('fonelove:login', { detail: data.user }))
+          setStep('success')
+          setTimeout(() => {
+            window.dispatchEvent(new CustomEvent('fonelove:login', { detail: data.user }))
+          }, 1500)
         } else {
           setError(data.error || t('landing.authError'))
+          setLoading(false)
         }
       } catch {
         setError(t('landing.authNetworkError'))
+        setLoading(false)
       }
-      setLoading(false)
     }
 
     const initGoogle = () => {
@@ -896,8 +900,16 @@ function InlineAuth() {
               >
                 {/* Google One Tap — Real rendered button */}
                 {googleLoaded ? (
-                  <div className="flex justify-center w-full relative z-20">
-                    <div ref={googleBtnRef} className="w-[280px] h-[40px] overflow-hidden" />
+                  <div className="flex justify-center w-full relative z-20 min-h-[40px]">
+                    <div ref={googleBtnRef} className={`w-[280px] h-[40px] overflow-hidden transition-opacity duration-300 ${loading ? 'opacity-0 pointer-events-none absolute' : 'opacity-100'}`} />
+                    {loading && (
+                      <div className="w-[280px] h-[40px] flex items-center justify-center bg-white/10 rounded-full border border-white/20">
+                        <div className="flex items-center gap-2 text-white/90 text-sm font-medium">
+                          <div className="h-4 w-4 rounded-full border-2 border-white/80 border-t-transparent animate-spin" />
+                          {t('landing.authConnecting')}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="relative w-full max-w-[280px] h-[40px] mx-auto rounded-full bg-white/5 border border-white/10 animate-pulse overflow-hidden">

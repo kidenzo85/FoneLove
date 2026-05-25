@@ -160,9 +160,9 @@ export function getPPPGroup(countryCode: string): PPPGroup {
 
 export const PPP_MULTIPLIER: Record<PPPGroup, number> = {
   high: 1.0,
-  upper_mid: 0.75,
-  lower_mid: 0.55,
-  low: 0.40,
+  upper_mid: 1.0,
+  lower_mid: 1.0,
+  low: 1.0,
 }
 
 // ===== Rate Cache Config =====

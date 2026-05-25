@@ -5,10 +5,12 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Phone, Check, X, Clock, Star, Sparkles, Share2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { type NumberRequest, type ProfileWithDetails } from '@/lib/store'
+import { useAppStore, type NumberRequest, type ProfileWithDetails } from '@/lib/store'
 import { cn } from '@/lib/utils'
 import { useFeedback } from '@/components/FeedbackSystem'
 import { useT } from '@/lib/i18n/context'
+import { PremiumAvatarFrame } from '@/components/premium/PremiumAvatarFrame'
+import { PremiumEffect } from '@/components/premium/PremiumEffects'
 
 interface RequestCardProps {
   request: NumberRequest
@@ -67,39 +69,34 @@ export default function RequestCard({ request, type, onAccept, onDecline, onView
   }
 
   return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: 20 }}
-      animate={{
-        opacity: 1,
-        y: 0,
-        scale: declining ? 0.95 : 1,
-      }}
-      exit={{ opacity: 0, x: type === 'received' ? -200 : 200, scale: 0.8 }}
-      transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-      className={cn(
-        "rounded-2xl border bg-card shadow-sm transition-all relative overflow-hidden",
-        request.status === 'accepted' ? "p-2" : "p-4",
-        showSuccess && "ring-2 ring-green-500/50 bg-green-500/5",
-        accepting && "ring-2 ring-primary/30",
-        type === 'received' && request.status === 'pending' && "border-primary/20 shadow-md shadow-primary/5",
-        request.isSuper && "border-amber-400/50 shadow-lg shadow-amber-500/10 bg-gradient-to-br from-amber-50/50 to-yellow-50/30 dark:from-amber-950/20 dark:to-yellow-950/10",
-      )}
-    >
-      {/* Super Request shimmer effect */}
-      {request.isSuper && (
-        <motion.div
-          className="absolute inset-0 pointer-events-none z-0"
-          style={{
-            background: 'linear-gradient(90deg, transparent 0%, rgba(251,191,36,0.08) 50%, transparent 100%)',
-            backgroundSize: '200% 100%',
-          }}
-          animate={{ backgroundPosition: ['200% 0', '-200% 0'] }}
-          transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
-        />
-      )}
-
-      {/* Success overlay */}
+    <PremiumEffect action={request.isSuper ? 'super_request' : (request as any).isRoseConnect ? 'rose_connect' : (null as any)} isActive={request.isSuper || (request as any).isRoseConnect}>
+      <motion.div
+        layout
+        onClick={() => {
+          if (type === 'sent') {
+            useAppStore.getState().setAutoOpenRequestId(request.id)
+            useAppStore.getState().setActiveTab('messages')
+          }
+        }}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{
+          opacity: 1,
+          y: 0,
+          scale: declining ? 0.95 : 1,
+        }}
+        exit={{ opacity: 0, x: type === 'received' ? -200 : 200, scale: 0.8 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+        className={cn(
+          "rounded-2xl border bg-card shadow-sm transition-all relative overflow-hidden",
+          request.status === 'accepted' ? "p-2" : "p-4",
+          showSuccess && "ring-2 ring-green-500/50 bg-green-500/5",
+          accepting && "ring-2 ring-primary/30",
+          type === 'received' && request.status === 'pending' && "border-primary/20 shadow-md shadow-primary/5",
+          request.isSuper && "border-amber-400/0 shadow-lg shadow-amber-500/10 bg-gradient-to-br from-amber-50/50 to-yellow-50/30 dark:from-amber-950/20 dark:to-yellow-950/10",
+          type === 'sent' && "cursor-pointer hover:border-primary/30"
+        )}
+      >
+        {/* Success overlay */}
       <AnimatePresence>
         {showSuccess && (
           <motion.div
@@ -132,15 +129,17 @@ export default function RequestCard({ request, type, onAccept, onDecline, onView
           onClick={() => onViewProfile?.(profile as ProfileWithDetails)}
           className="relative shrink-0 group"
         >
-          <motion.img
-            src={photo}
-            alt={profile.firstName}
-            className={cn(
-              "rounded-full object-cover ring-2 ring-background group-hover:ring-primary/30 transition-all",
-              request.status === 'accepted' ? "h-8 w-8" : "h-14 w-14"
-            )}
-            whileTap={{ scale: 0.9 }}
-          />
+          <PremiumAvatarFrame theme={(profile as any).activeTheme || undefined} size="sm">
+            <motion.img
+              src={photo}
+              alt={profile.firstName}
+              className={cn(
+                "rounded-full object-cover ring-2 ring-background group-hover:ring-primary/30 transition-all",
+                request.status === 'accepted' ? "h-8 w-8" : "h-14 w-14"
+              )}
+              whileTap={{ scale: 0.9 }}
+            />
+          </PremiumAvatarFrame>
           {type === 'received' && request.status === 'pending' && (
             <motion.div
               className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-green-500 border-2 border-background"
@@ -238,5 +237,6 @@ export default function RequestCard({ request, type, onAccept, onDecline, onView
         </div>
       </div>
     </motion.div>
+    </PremiumEffect>
   )
 }

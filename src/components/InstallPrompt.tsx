@@ -45,17 +45,13 @@ export default function InstallPrompt() {
 
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt)
 
-    // Logique d'affichage (ne pas harceler)
-    const hasDismissed = localStorage.getItem("fonelove-pwa-dismissed")
-    if (!hasDismissed) {
-      // Attendre un peu avant d'afficher pour ne pas agresser dès la première seconde
-      const timer = setTimeout(() => {
-        setShowPrompt(true)
-      }, 5000)
-      return () => clearTimeout(timer)
-    }
+    // Attendre un peu avant d'afficher
+    const timer = setTimeout(() => {
+      setShowPrompt(true)
+    }, 5000)
 
     return () => {
+      clearTimeout(timer)
       window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt)
     }
   }, [])
@@ -73,7 +69,6 @@ export default function InstallPrompt() {
 
   const handleDismiss = () => {
     setShowPrompt(false)
-    localStorage.setItem("fonelove-pwa-dismissed", "true")
   }
 
   // Ne rien afficher si déjà installée, ou si on n'a ni prompt natif ni iOS

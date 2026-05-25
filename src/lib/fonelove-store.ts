@@ -37,6 +37,16 @@ export interface SendDialogTarget {
   photo?: string
 }
 
+export interface PaymentOrderItem {
+  id: string
+  packType: string
+  amountXAF: number
+  ccAmount: number
+  status: string
+  createdAt: string
+  metadata?: string | null
+}
+
 interface FoneLoveState {
   // Wallet balances
   sendBalance: number       // FoneLove you can send
@@ -51,6 +61,7 @@ interface FoneLoveState {
   // Transactions
   transactions: FoneLoveTransactionItem[]
   gifts: FoneLoveGiftItem[]
+  orders: PaymentOrderItem[]
 
   // UI State
   showSendDialog: SendDialogTarget | null
@@ -83,6 +94,7 @@ export const useFoneLoveStore = create<FoneLoveState>()(
       config: null,
       transactions: [],
       gifts: [],
+      orders: [],
       showSendDialog: null,
       showWallet: false,
       pendingReceivedGift: null,
@@ -127,6 +139,7 @@ export const useFoneLoveStore = create<FoneLoveState>()(
           set({
             transactions: data.transactions ?? [],
             gifts: data.gifts ?? [],
+            orders: data.orders ?? [],
           })
         } catch (err) {
           console.error('FoneLove fetchHistory error:', err)

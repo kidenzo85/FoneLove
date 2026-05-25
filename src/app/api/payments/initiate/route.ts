@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { createPaylink, PACK_PRICES_XAF, generateOrderRef } from '@/lib/coolpay'
+import { getPPPGroup, PPP_MULTIPLIER, applyPsychologicalRounding, getRoundingMode } from '@/lib/currency-constants'
 
 /**
  * POST /api/payments/initiate
@@ -11,7 +12,7 @@ import { createPaylink, PACK_PRICES_XAF, generateOrderRef } from '@/lib/coolpay'
  */
 export async function POST(req: NextRequest) {
   try {
-    const { userId, packType, customerPhone, customerEmail } = await req.json()
+    const { userId, packType, customerPhone, customerEmail, countryCode } = await req.json()
 
     if (!userId || !packType) {
       return NextResponse.json(
@@ -24,15 +25,38 @@ export async function POST(req: NextRequest) {
     const packInfo = await prisma.packConfig.findUnique({
       where: { packKey: packType }
     })
-    if (!packInfo || !packInfo.isActive || packInfo.currency !== 'CC') {
+    if (!packInfo || !packInfo.isActive) {
       return NextResponse.json(
         { error: 'Pack invalide ou inactif.' },
         { status: 400 }
       )
     }
-    const priceXafNum = packInfo.priceXaf ? Number(packInfo.priceXaf) : null;
-    const priceEurNum = packInfo.priceEur ? Number(packInfo.priceEur) : 0;
-    const amountXAF = priceXafNum ?? Math.round(priceEurNum * 655.96);
+
+    let amountXAF = 0;
+    
+    if (packInfo.currency === 'CC') {
+      // Pour les packs CC, le frontend applique la parité de pouvoir d'achat (PPP).
+      // Nous devons appliquer le même calcul de réduction PPP au prix de base en Euro, puis convertir en XAF.
+      const priceEurNum = packInfo.priceEur ? Number(packInfo.priceEur) : 0;
+      let pppMultiplier = 1;
+      
+      if (countryCode) {
+        const pppGroup = getPPPGroup(countryCode);
+        pppMultiplier = PPP_MULTIPLIER[pppGroup] || 1;
+      }
+      
+      const discountedEur = priceEurNum * pppMultiplier;
+      const rawXaf = discountedEur * 655.96;
+      
+      // Le frontend utilise le rounding psychologique (ex: 21.9 pour 22 FCFA)
+      // CoolPay a besoin d'un entier (XAF n'a pas de décimales), donc Math.round
+      amountXAF = Math.round(applyPsychologicalRounding(rawXaf, getRoundingMode('XAF')));
+    } else {
+      // Fallback pour les recharges FoneLove qui utilisent priceXaf fixe
+      const priceXafNum = packInfo.priceXaf ? Number(packInfo.priceXaf) : null;
+      const priceEurNum = packInfo.priceEur ? Number(packInfo.priceEur) : 0;
+      amountXAF = priceXafNum ?? Math.round(priceEurNum * 655.96);
+    }
     
     if (amountXAF <= 0 || isNaN(amountXAF)) {
       return NextResponse.json(
@@ -90,24 +114,34 @@ export async function POST(req: NextRequest) {
     const totalCC = packInfo.amount + packInfo.bonusAmount + firstPurchaseBonus
     const appTransactionRef = generateOrderRef()
 
+    let metadataObj: any = {
+      packLabel: packInfo.name,
+      baseCC: packInfo.amount,
+      bonusCC: packInfo.bonusAmount,
+      firstPurchaseBonus,
+    }
+
+    if (packInfo.currency === 'FL') {
+      metadataObj = {
+        type: 'fonelove_recharge',
+        packLabel: packInfo.name,
+        flAmount: packInfo.amount + packInfo.bonusAmount,
+      }
+    }
+
     // Créer la commande en base
     const order = await prisma.paymentOrder.create({
       data: {
         userId,
         packType,
         amountXAF: amountXAF,
-        ccAmount: totalCC,
-        bonusCC: packInfo.bonusAmount + firstPurchaseBonus,
+        ccAmount: packInfo.currency === 'CC' ? totalCC : 0,
+        bonusCC: packInfo.currency === 'CC' ? packInfo.bonusAmount + firstPurchaseBonus : 0,
         status: 'pending',
         appTransactionRef,
         customerPhone: customerPhone || user.phone,
         customerEmail: customerEmail || user.email,
-        metadata: JSON.stringify({
-          packLabel: packInfo.name,
-          baseCC: packInfo.amount,
-          bonusCC: packInfo.bonusAmount,
-          firstPurchaseBonus,
-        }),
+        metadata: JSON.stringify(metadataObj),
       },
     })
 

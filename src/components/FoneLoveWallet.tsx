@@ -7,6 +7,7 @@ import { Sheet, SheetContent, SheetTitle, SheetDescription } from '@/components/
 import { Button } from '@/components/ui/button'
 import { useFoneLoveStore } from '@/lib/fonelove-store'
 import { useAppStore } from '@/lib/store'
+import { useCurrencyStore } from '@/lib/currency-store'
 import { cn } from '@/lib/utils'
 
 const RECHARGE_PACKS = [
@@ -18,10 +19,11 @@ const RECHARGE_PACKS = [
 
 export default function FoneLoveWallet() {
   const { showWallet, setShowWallet, sendBalance, receivedBalance, totalSent, totalReceived, totalWithdrawn,
-    config, transactions, fetchWallet, fetchConfig, fetchHistory, rechargeWallet, requestWithdraw } = useFoneLoveStore()
+    config, transactions, gifts, orders, fetchWallet, fetchConfig, fetchHistory, rechargeWallet, requestWithdraw } = useFoneLoveStore()
   const currentUser = useAppStore((s) => s.currentUser)
+  const formatLocalPrice = useCurrencyStore((s) => s.formatLocalPrice)
 
-  const [tab, setTab] = useState<'balance' | 'recharge' | 'withdraw'>('balance')
+  const [tab, setTab] = useState<'balance' | 'recharge' | 'withdraw' | 'history'>('balance')
   const [processing, setProcessing] = useState(false)
   const [success, setSuccess] = useState<string | null>(null)
   const [withdrawAmount, setWithdrawAmount] = useState(10)
@@ -95,6 +97,7 @@ export default function FoneLoveWallet() {
               { key: 'balance' as const, label: 'Mon solde', icon: Sparkles },
               { key: 'recharge' as const, label: 'Recharger', icon: ArrowDownToLine },
               { key: 'withdraw' as const, label: 'Retirer', icon: ArrowUpFromLine },
+              { key: 'history' as const, label: 'Historique', icon: History },
             ]).map((t) => (
               <button key={t.key} onClick={() => setTab(t.key)}
                 className={cn('flex-1 flex items-center justify-center gap-1 rounded-lg py-2.5 text-xs font-medium transition-all',
@@ -150,20 +153,65 @@ export default function FoneLoveWallet() {
                 ))}
               </div>
 
-              {/* Transaction history */}
+            </div>
+          )}
+
+          {tab === 'history' && (
+            <div className="space-y-6 py-4">
+              {/* ACHATS */}
               <div>
                 <h4 className="text-xs font-bold text-muted-foreground uppercase mb-2 flex items-center gap-1.5">
-                  <History className="size-3.5" /> Historique
+                  <ArrowDownToLine className="size-3.5" /> Achats de FoneLove
                 </h4>
-                {transactions.length === 0 ? (
-                  <p className="text-xs text-muted-foreground text-center py-6">Aucune transaction</p>
+                {(!orders || orders.length === 0) ? (
+                  <p className="text-xs text-muted-foreground text-center py-4">Aucun achat</p>
+                ) : (
+                  <div className="space-y-1">
+                    {orders.map((order) => {
+                      const dateStr = new Date(order.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
+                      const statusColors: Record<string, string> = { success: 'text-green-400', pending: 'text-amber-400', processing: 'text-amber-400', failed: 'text-red-400', cancelled: 'text-red-400' }
+                      const statusLabels: Record<string, string> = { success: 'Réussi', pending: 'En attente', processing: 'En traitement', failed: 'Échoué', cancelled: 'Annulé' }
+                      const statusColor = statusColors[order.status] || 'text-muted-foreground'
+                      const statusLabel = statusLabels[order.status] || order.status
+                      let flAmount = 0
+                      try {
+                        if (order.metadata) flAmount = JSON.parse(order.metadata).flAmount || 0
+                      } catch (e) {}
+
+                      return (
+                        <div key={order.id} className="flex items-center gap-3 py-2 rounded-lg border-b border-border/10 last:border-0">
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted/30 text-sm">💳</div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium truncate uppercase">{flAmount > 0 ? `${flAmount} FoneLove` : `Pack ${order.packType}`}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="text-[9px] text-muted-foreground">{dateStr}</p>
+                              <p className={cn("text-[9px] font-bold", statusColor)}>{statusLabel}</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-[9px] text-muted-foreground">{order.amountXAF} FCFA</p>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* AUTRES TRANSACTIONS */}
+              <div>
+                <h4 className="text-xs font-bold text-muted-foreground uppercase mb-2 flex items-center gap-1.5">
+                  <History className="size-3.5" /> Autres Transactions
+                </h4>
+                {(!transactions || transactions.length === 0) ? (
+                  <p className="text-xs text-muted-foreground text-center py-4">Aucune transaction</p>
                 ) : (
                   <div className="space-y-1">
                     {transactions.slice(0, 15).map((tx) => {
                       const isPositive = tx.amount > 0
                       const icons: Record<string, string> = { recharge: '💳', send: '🎁', receive: '💝', withdraw: '💰', convert_from_cc: '🔄' }
                       return (
-                        <div key={tx.id} className="flex items-center gap-3 py-2 rounded-lg">
+                        <div key={tx.id} className="flex items-center gap-3 py-2 rounded-lg border-b border-border/10 last:border-0">
                           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted/30 text-sm">
                             {icons[tx.type] || '💫'}
                           </div>
@@ -209,7 +257,7 @@ export default function FoneLoveWallet() {
                       <div className="flex-1">
                         <p className="font-bold text-sm">{pack.label}</p>
                         <p className="text-[10px] text-muted-foreground">
-                          {(pack.amount * (config?.unitPriceEur ?? 0.50)).toFixed(2)}€
+                          {formatLocalPrice(pack.amount * (config?.unitPriceEur ?? 0.50))}
                         </p>
                       </div>
                     </div>
@@ -243,16 +291,16 @@ export default function FoneLoveWallet() {
 
               {/* Breakdown */}
               <div className="rounded-xl bg-muted/10 border border-border/20 p-3 space-y-2 text-sm">
-                <div className="flex justify-between"><span className="text-muted-foreground">Valeur brute</span><span>{(withdrawAmount * withdrawValue).toFixed(2)}€</span></div>
-                <div className="flex justify-between"><span className="text-red-400">Commission ({commission}%)</span><span className="text-red-400">-{(withdrawAmount * withdrawValue * commission / 100).toFixed(2)}€</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Valeur brute</span><span>{formatLocalPrice(withdrawAmount * withdrawValue)}</span></div>
+                <div className="flex justify-between"><span className="text-red-400">Commission ({commission}%)</span><span className="text-red-400">-{formatLocalPrice(withdrawAmount * withdrawValue * commission / 100)}</span></div>
                 <div className="h-px bg-border/20" />
-                <div className="flex justify-between font-bold"><span>Tu reçois</span><span className="text-green-400">{netPayout.toFixed(2)}€</span></div>
+                <div className="flex justify-between font-bold"><span>Tu reçois</span><span className="text-green-400">{formatLocalPrice(netPayout)}</span></div>
               </div>
 
               <Button className="w-full h-14 rounded-2xl text-base font-bold text-white border-0"
                 style={{ background: receivedBalance < (config?.minWithdrawAmount ?? 10) ? '#666' : 'linear-gradient(135deg, #f59e0b, #eab308)' }}
                 onClick={handleWithdraw} disabled={processing || receivedBalance < (config?.minWithdrawAmount ?? 10) || withdrawAmount > receivedBalance}>
-                {processing ? 'Traitement...' : `Retirer ${netPayout.toFixed(2)}€`}
+                {processing ? 'Traitement...' : `Retirer ${formatLocalPrice(netPayout)}`}
               </Button>
 
               {receivedBalance < (config?.minWithdrawAmount ?? 10) && (

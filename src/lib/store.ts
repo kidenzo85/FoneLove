@@ -143,6 +143,15 @@ export interface FilterState {
   verifiedOnly?: boolean
 }
 
+export interface PremiumActionConfig {
+  action: string
+  durationMinutes: number
+  isEnabled: boolean
+  costCC: number
+  label: string
+  emoji: string
+}
+
 export interface AppConfig {
   requirePhoneVerification: boolean
 }
@@ -170,6 +179,7 @@ interface AppState {
   likes: LikeItem[]
   moments: MomentItem[]
   profileVisits: ProfileWithDetails[]
+  premiumActions: PremiumActionConfig[]
   nextCursor: string | null
   hasMore: boolean
   isLoadingMore: boolean
@@ -200,6 +210,7 @@ interface AppState {
   setLikes: (likes: LikeItem[]) => void
   setMoments: (moments: MomentItem[]) => void
   setProfileVisits: (visits: ProfileWithDetails[]) => void
+  setPremiumActions: (actions: PremiumActionConfig[]) => void
   setSelectedProfile: (profile: ProfileWithDetails | null) => void
   setShowProfileDetail: (val: boolean) => void
   setShowFilter: (val: boolean) => void
@@ -245,6 +256,7 @@ export const useAppStore = create<AppState>()(
       likes: [],
       moments: [],
       profileVisits: [],
+      premiumActions: [],
       nextCursor: null,
       hasMore: true,
       isLoadingMore: false,
@@ -283,6 +295,7 @@ export const useAppStore = create<AppState>()(
       setLikes: (likes) => set({ likes }),
       setMoments: (moments) => set({ moments }),
       setProfileVisits: (visits) => set({ profileVisits: visits }),
+      setPremiumActions: (actions) => set({ premiumActions: actions }),
       setSelectedProfile: (profile) => set({ selectedProfile: profile }),
       setShowProfileDetail: (val) => set({ showProfileDetail: val }),
       setShowFilter: (val) => set({ showFilter: val }),
@@ -318,6 +331,7 @@ export const useAppStore = create<AppState>()(
           likes: [],
           moments: [],
           profileVisits: [],
+          premiumActions: [],
           activeTab: 'discover',
         }),
     }),

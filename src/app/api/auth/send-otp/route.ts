@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     // Generate 6-digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString()
 
-    // Store OTP (5 minute expiry)
+    // Store OTP (30 minute expiry)
     storeOtp(normalizedEmail, otp)
 
     // Build email HTML
@@ -170,7 +170,7 @@ function buildOtpEmailHtml(otp: string): string {
           <tr>
             <td align="center" style="padding:16px 32px 28px;">
               <p style="margin:0;font-size:12px;color:rgba(255,255,255,0.35);line-height:1.5;">
-                Ce code expire dans <span style="color:#ec4899;font-weight:600;">5 minutes</span> ⏱️<br>
+                Ce code expire dans <span style="color:#ec4899;font-weight:600;">30 minutes</span> ⏱️<br>
                 Si tu n'as pas demandé ce code, ignore cet email.
               </p>
             </td>

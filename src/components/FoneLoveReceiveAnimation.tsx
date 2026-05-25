@@ -33,8 +33,8 @@ export default function FoneLoveReceiveAnimation() {
       }
     }
     checkGifts()
-    // We can poll every 15 seconds, or just once on mount
-    const interval = setInterval(checkGifts, 15000)
+    // We can poll every 60 seconds, or just once on mount
+    const interval = setInterval(checkGifts, 60000)
     return () => clearInterval(interval)
   }, [currentUser])
 

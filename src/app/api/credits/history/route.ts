@@ -54,8 +54,28 @@ export async function GET(req: NextRequest) {
       date: tx.createdAt,
     }))
 
+    // Get payment orders (excluding fonelove)
+    const orders = await prisma.paymentOrder.findMany({
+      where: { 
+        userId,
+        NOT: { packType: { startsWith: 'fonelove_' } }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 30, // Just fetch the 30 most recent for now
+    })
+
+    const formattedOrders = orders.map((o) => ({
+      id: o.id,
+      packType: o.packType,
+      amountXAF: o.amountXAF,
+      ccAmount: o.ccAmount,
+      status: o.status,
+      createdAt: o.createdAt,
+    }))
+
     return NextResponse.json({
       transactions: formattedTransactions,
+      orders: formattedOrders,
       total,
       page,
       limit,

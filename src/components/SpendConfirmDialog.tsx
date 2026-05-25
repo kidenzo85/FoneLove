@@ -64,7 +64,11 @@ export default function SpendConfirmDialog() {
 
   return (
     <Dialog open={!!showSpendConfirm} onOpenChange={(open) => !open && handleClose()}>
-      <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-sm rounded-2xl border-border/50 bg-card/95 backdrop-blur-xl">
+      <DialogContent 
+        onInteractOutside={(e) => e.preventDefault()}
+        onCloseAutoFocus={(e) => e.preventDefault()}
+        className="max-w-[calc(100vw-2rem)] sm:max-w-sm rounded-2xl border-border/50 bg-card/95 backdrop-blur-xl"
+      >
         <DialogTitle className="sr-only">{label?.name || 'Confirmation'}</DialogTitle>
         <DialogDescription className="sr-only">{label?.description || ''}</DialogDescription>
         <AnimatePresence mode="wait">

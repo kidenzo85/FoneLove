@@ -44,8 +44,10 @@ import {
   Tooltip, Legend, ResponsiveContainer, Cell
 } from 'recharts'
 import { cn } from '@/lib/utils'
-import { ConfigProvider, useConfigStore } from '@/lib/config-store'
+
 import { PacksConfigTable } from './PacksConfigTable'
+import { AdminPaymentsTable } from './AdminPaymentsTable'
+import { AdminAnalyticsTab } from './AdminAnalyticsTab'
 import { useAppStore } from '@/lib/store'
 
 // ============================================
@@ -65,9 +67,11 @@ type PageKey =
   | 'moments'
   | 'reports'
   | 'premium'
+  | 'payments'
   | 'notifications'
   | 'settings'
   | 'gamification'
+  | 'analytics'
 
 interface MockUser {
   id: string
@@ -159,210 +163,7 @@ interface MockPremium {
 // ============================================
 // MOCK DATA
 // ============================================
-const FRENCH_FIRST_NAMES_M = ['Lucas', 'Gabriel', 'Raphaël', 'Arthur', 'Louis', 'Jules', 'Hugo', 'Léo', 'Ethan', 'Nathan', 'Adam', 'Sacha', 'Gabin', 'Paul', 'Noé', 'Mathis', 'Clément', 'Enzo', 'Théo', 'Maxime']
-const FRENCH_FIRST_NAMES_F = ['Emma', 'Jade', 'Louise', 'Alice', 'Chloé', 'Léa', 'Inès', 'Rose', 'Manon', 'Juliette', 'Camille', 'Zoé', 'Lina', 'Mila', 'Ambre', 'Clara', 'Léna', 'Sarah', 'Eva', 'Maëlys']
-const FRENCH_LAST_NAMES = ['Martin', 'Bernard', 'Dubois', 'Thomas', 'Robert', 'Richard', 'Petit', 'Durand', 'Leroy', 'Moreau', 'Simon', 'Laurent', 'Lefebvre', 'Michel', 'Garcia', 'David', 'Bertrand', 'Roux', 'Vincent', 'Fournier']
-const FRENCH_CITIES = ['Paris', 'Lyon', 'Marseille', 'Toulouse', 'Nice', 'Nantes', 'Strasbourg', 'Montpellier', 'Bordeaux', 'Lille', 'Rennes', 'Reims', 'Toulon', 'Le Havre', 'Grenoble']
-const AVATAR_BASE = 'https://i.pravatar.cc/100?img='
 
-function generateMockUsers(): MockUser[] {
-  const users: MockUser[] = []
-  for (let i = 0; i < 50; i++) {
-    const isMale = i < 25
-    const firstNames = isMale ? FRENCH_FIRST_NAMES_M : FRENCH_FIRST_NAMES_F
-    const firstName = firstNames[i % firstNames.length]
-    const lastName = FRENCH_LAST_NAMES[i % FRENCH_LAST_NAMES.length]
-    const gender: MockUser['gender'] = i < 25 ? 'Homme' : i < 47 ? 'Femme' : 'Non-binaire'
-    users.push({
-      id: `u${i + 1}`,
-      firstName,
-      lastName,
-      email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}@email.fr`,
-      gender,
-      age: 20 + Math.floor(Math.random() * 25),
-      city: FRENCH_CITIES[i % FRENCH_CITIES.length],
-      score: 30 + Math.floor(Math.random() * 70),
-      premium: Math.random() > 0.7,
-      verified: Math.random() > 0.4,
-      status: Math.random() > 0.85 ? (Math.random() > 0.5 ? 'Suspendu' : 'Banni') : 'Actif',
-      avatar: `${AVATAR_BASE}${i + 1}`,
-      inscription: `2025-${String(Math.floor(Math.random() * 5) + 1).padStart(2, '0')}-${String(Math.floor(Math.random() * 28) + 1).padStart(2, '0')}`,
-      lastActive: `2026-05-${String(Math.floor(Math.random() * 4) + 1).padStart(2, '0')}`,
-    })
-  }
-  return users
-}
-
-function generateMockRequests(users: MockUser[]): MockRequest[] {
-  const statuses: MockRequest['status'][] = ['En attente', 'Acceptée', 'Refusée']
-  const messages = [
-    "Salut ! J'aimerais faire ta connaissance 😊",
-    "Ton profil m'intrigue, on échange ?",
-    "Coucou ! On se connaît peut-être ?",
-    "Tu as l'air super sympa !",
-    "Hey ! Tes photos sont trop belles 🔥",
-    "On pourrait sortir un de ces jours ?",
-    "Je t'ai trouvée via Moments, trop cute !",
-    "Dis-moi en plus sur toi ?",
-    "Tu aimes la musique ? Moi aussi !",
-    "Salut belle personne ✨",
-  ]
-  const requests: MockRequest[] = []
-  for (let i = 0; i < 30; i++) {
-    const senderIdx = Math.floor(Math.random() * users.length)
-    let receiverIdx = Math.floor(Math.random() * users.length)
-    while (receiverIdx === senderIdx) receiverIdx = Math.floor(Math.random() * users.length)
-    requests.push({
-      id: `r${i + 1}`,
-      sender: `${users[senderIdx].firstName} ${users[senderIdx].lastName}`,
-      senderAvatar: users[senderIdx].avatar,
-      receiver: `${users[receiverIdx].firstName} ${users[receiverIdx].lastName}`,
-      receiverAvatar: users[receiverIdx].avatar,
-      message: messages[i % messages.length],
-      isSuper: Math.random() > 0.75,
-      status: statuses[Math.floor(Math.random() * 3)],
-      date: `2026-04-${String(Math.floor(Math.random() * 30) + 1).padStart(2, '0')}`,
-    })
-  }
-  return requests
-}
-
-function generateMockConversations(users: MockUser[]): MockConversation[] {
-  const lastMessages = [
-    "On se voit demain ? 😄", "Trop bien merci !", "C'est noté 👍",
-    "Haha trop drôle 😂", "Oui carrément !", "Bonne nuit 💤",
-    "T'es libre ce week-end ?", "Trop cool ton profil", "Merci beaucoup !",
-    "On en reparle bientôt", "Super idée !", "C'est quoi ton insta ?",
-    "T'as vu le match hier ?", "Je t'envoie ma playlist", "Coucou c'est moi 😊",
-    "T'es trop mignonne", "Ok parfait !", "Bisous 😘", "À toute !",
-    "J'ai hâte de te rencontrer",
-  ]
-  const conversations: MockConversation[] = []
-  for (let i = 0; i < 20; i++) {
-    const u1 = Math.floor(Math.random() * users.length)
-    let u2 = Math.floor(Math.random() * users.length)
-    while (u2 === u1) u2 = Math.floor(Math.random() * users.length)
-    conversations.push({
-      id: `c${i + 1}`,
-      user1: `${users[u1].firstName} ${users[u1].lastName}`,
-      user1Avatar: users[u1].avatar,
-      user2: `${users[u2].firstName} ${users[u2].lastName}`,
-      user2Avatar: users[u2].avatar,
-      messages: 3 + Math.floor(Math.random() * 40),
-      lastMessage: lastMessages[i % lastMessages.length],
-      date: `2026-05-0${Math.floor(Math.random() * 4) + 1}`,
-      preNumber: Math.random() > 0.6,
-    })
-  }
-  return conversations
-}
-
-function generateMockConnections(users: MockUser[]): MockConnection[] {
-  const connections: MockConnection[] = []
-  for (let i = 0; i < 15; i++) {
-    const u1 = Math.floor(Math.random() * users.length)
-    let u2 = Math.floor(Math.random() * users.length)
-    while (u2 === u1) u2 = Math.floor(Math.random() * users.length)
-    connections.push({
-      id: `co${i + 1}`,
-      user1: `${users[u1].firstName} ${users[u1].lastName}`,
-      user1Avatar: users[u1].avatar,
-      user2: `${users[u2].firstName} ${users[u2].lastName}`,
-      user2Avatar: users[u2].avatar,
-      date: `2026-04-${String(Math.floor(Math.random() * 30) + 1).padStart(2, '0')}`,
-      phone1: `+33 6 ${String(Math.floor(Math.random() * 90) + 10)} ${String(Math.floor(Math.random() * 90) + 10)} ${String(Math.floor(Math.random() * 90) + 10)} ${String(Math.floor(Math.random() * 90) + 10)}`,
-      phone2: `+33 6 ${String(Math.floor(Math.random() * 90) + 10)} ${String(Math.floor(Math.random() * 90) + 10)} ${String(Math.floor(Math.random() * 90) + 10)} ${String(Math.floor(Math.random() * 90) + 10)}`,
-    })
-  }
-  return connections
-}
-
-function generateMockMoments(users: MockUser[]): MockMoment[] {
-  const captions = [
-    "Sunset à Paris 🌅", "Brunch du dimanche 🥐", "Moi aujourd'hui ✨",
-    "Vibes positives 🌈", "Soirée entre amis 🎉", "Mon chat est trop mignon 🐱",
-    "Workout done 💪", "Nouveau look 🔥", "La vie est belle 💕",
-    "Road trip ! 🚗",
-  ]
-  const statuses: MockMoment['status'][] = ['Actif', 'Expiré', 'Signalé']
-  const moments: MockMoment[] = []
-  for (let i = 0; i < 10; i++) {
-    const u = users[Math.floor(Math.random() * users.length)]
-    moments.push({
-      id: `m${i + 1}`,
-      user: `${u.firstName} ${u.lastName}`,
-      userAvatar: u.avatar,
-      thumbnail: `https://picsum.photos/300/400?random=${i + 1}`,
-      caption: captions[i],
-      status: i < 6 ? 'Actif' : i < 8 ? 'Expiré' : 'Signalé',
-      date: `2026-05-0${Math.floor(Math.random() * 4) + 1}`,
-      likes: Math.floor(Math.random() * 200),
-      comments: Math.floor(Math.random() * 50),
-    })
-  }
-  return moments
-}
-
-function generateMockReports(users: MockUser[]): MockReport[] {
-  const reasons = [
-    "Comportement inapproprié", "Spam / Publicité", "Faux profil",
-    "Harcèlement", "Contenu offensant", "Photos inappropriées",
-    "Menaces", "Usurpation d'identité",
-  ]
-  const statuses: MockReport['status'][] = ['En cours', 'Résolu', 'Ignoré']
-  const reports: MockReport[] = []
-  for (let i = 0; i < 8; i++) {
-    const rIdx = Math.floor(Math.random() * users.length)
-    let tIdx = Math.floor(Math.random() * users.length)
-    while (tIdx === rIdx) tIdx = Math.floor(Math.random() * users.length)
-    reports.push({
-      id: `rep${i + 1}`,
-      reporter: `${users[rIdx].firstName} ${users[rIdx].lastName}`,
-      reporterAvatar: users[rIdx].avatar,
-      reported: `${users[tIdx].firstName} ${users[tIdx].lastName}`,
-      reportedAvatar: users[tIdx].avatar,
-      reason: reasons[i % reasons.length],
-      date: `2026-04-${String(Math.floor(Math.random() * 30) + 1).padStart(2, '0')}`,
-      status: statuses[i % 3],
-    })
-  }
-  return reports
-}
-
-function generateMockPremium(users: MockUser[]): MockPremium[] {
-  const plans: MockPremium['plan'][] = ['Mensuel', 'Trimestriel', 'Annuel']
-  const prices = { Mensuel: 9.99, Trimestriel: 24.99, Annuel: 79.99 }
-  const premiumUsers = users.filter(u => u.premium).slice(0, 12)
-  const premiums: MockPremium[] = premiumUsers.map((u, i) => {
-    const plan = plans[i % 3]
-    return {
-      id: `p${i + 1}`,
-      user: `${u.firstName} ${u.lastName}`,
-      userAvatar: u.avatar,
-      plan,
-      price: prices[plan],
-      startDate: `2025-${String(Math.floor(Math.random() * 12) + 1).padStart(2, '0')}-01`,
-      nextBilling: `2026-06-01`,
-      status: i < 9 ? 'Actif' : i < 11 ? 'Expiré' : 'Annulé',
-    }
-  })
-  return premiums
-}
-
-function generateChart30Days() {
-  const data: any[] = []
-  for (let i = 30; i >= 1; i--) {
-    const day = 30 - i + 1
-    data.push({
-      name: `${String(day).padStart(2, '0')}/04`,
-      inscriptions: Math.floor(Math.random() * 30) + 10,
-      messages: Math.floor(Math.random() * 150) + 50,
-      demandes: Math.floor(Math.random() * 40) + 15,
-      connexions: Math.floor(Math.random() * 20) + 5,
-    })
-  }
-  return data
-}
 
 // ============================================
 // CHART COLORS
@@ -420,6 +221,7 @@ function PremiumBadge({ isPremium }: { isPremium: boolean }) {
 // ============================================
 const NAV_ITEMS: { key: PageKey; label: string; icon: React.ElementType }[] = [
   { key: 'overview', label: 'Vue d\'ensemble', icon: BarChart3 },
+  { key: 'analytics', label: 'Analytiques', icon: Activity },
   { key: 'users', label: 'Utilisateurs', icon: Users },
   { key: 'requests', label: 'Demandes de numéro', icon: Phone },
   { key: 'messages', label: 'Messages', icon: MessageCircle },
@@ -427,6 +229,7 @@ const NAV_ITEMS: { key: PageKey; label: string; icon: React.ElementType }[] = [
   { key: 'moments', label: 'Moments', icon: Camera },
   { key: 'reports', label: 'Signalements', icon: AlertTriangle },
   { key: 'premium', label: 'Premium', icon: Crown },
+  { key: 'payments', label: 'Paiements', icon: DollarSign },
   { key: 'notifications', label: 'Notifications Push', icon: Bell },
   { key: 'settings', label: 'Configuration', icon: Settings },
   { key: 'gamification', label: 'Gamification', icon: Trophy },
@@ -440,7 +243,7 @@ function OverviewPage({
 }: {
   users: MockUser[]
   requests: MockRequest[]
-  chartData: ReturnType<typeof generateChart30Days>
+  chartData: any[]
   connections: MockConnection[]
   premiumSubs: MockPremium[]
 }) {
@@ -462,18 +265,58 @@ function OverviewPage({
     { name: 'Gratuit', value: users.filter(u => !u.premium).length, color: CHART_COLORS.sky },
   ]
 
-  const recentActivity = [
-    { icon: Users, text: 'Nouvel utilisateur : Emma Dubois', time: 'il y a 5 min', color: 'text-blue-500' },
-    { icon: Phone, text: 'Demande acceptée : Lucas → Chloé', time: 'il y a 12 min', color: 'text-emerald-500' },
-    { icon: AlertTriangle, text: 'Signalement : profil #1042', time: 'il y a 25 min', color: 'text-amber-500' },
-    { icon: Crown, text: 'Nouvel abonnement Premium (Annuel)', time: 'il y a 32 min', color: 'text-amber-500' },
-    { icon: Camera, text: 'Moment signalé : Arthur M.', time: 'il y a 45 min', color: 'text-red-500' },
-    { icon: Link2, text: 'Nouvelle connexion : Léo ↔ Inès', time: 'il y a 1h', color: 'text-violet-500' },
-    { icon: Phone, text: 'Demande refusée : Nathan → Rose', time: 'il y a 1h30', color: 'text-red-400' },
-    { icon: Users, text: 'Compte suspendu : spam#887', time: 'il y a 2h', color: 'text-orange-500' },
-    { icon: Shield, text: 'Vérification approuvée : Manon L.', time: 'il y a 2h15', color: 'text-emerald-500' },
-    { icon: MessageCircle, text: 'Conversation expirée : #conv-2244', time: 'il y a 3h', color: 'text-gray-500' },
-  ]
+  // Générer une activité récente dynamique
+  const allEvents: any[] = []
+  
+  users.slice(0, 3).forEach((u: any) => {
+    allEvents.push({
+      icon: Users,
+      text: `Nouvel utilisateur : ${u.firstName || ''}`,
+      time: u.createdAt,
+      color: 'text-blue-500'
+    })
+  })
+
+  requests.slice(0, 5).forEach((r: any) => {
+    const text = r.status === 'Acceptée' ? `Demande acceptée : ${r.sender?.firstName || 'Quelqu\'un'}` : 
+                 r.status === 'Refusée' ? `Demande refusée : ${r.sender?.firstName || 'Quelqu\'un'}` : 
+                 `Nouvelle demande : ${r.sender?.firstName || 'Quelqu\'un'}`
+    const color = r.status === 'Acceptée' ? 'text-emerald-500' : 
+                  r.status === 'Refusée' ? 'text-red-400' : 'text-amber-500'
+    allEvents.push({
+      icon: Phone,
+      text,
+      time: r.createdAt,
+      color
+    })
+  })
+
+  connections.slice(0, 3).forEach((c: any) => {
+    allEvents.push({
+      icon: Link2,
+      text: `Nouvelle connexion : ${c.user1?.firstName || 'Anonyme'} ↔ ${c.user2?.firstName || 'Anonyme'}`,
+      time: c.createdAt,
+      color: 'text-violet-500'
+    })
+  })
+
+  premiumSubs.slice(0, 3).forEach((p: any) => {
+    allEvents.push({
+      icon: Crown,
+      text: `Nouvel abonnement Premium (${p.plan || 'Plan'})`,
+      time: p.startDate || p.createdAt,
+      color: 'text-amber-500'
+    })
+  })
+
+  const recentActivity = allEvents
+    .filter(e => e.time)
+    .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
+    .slice(0, 10)
+    .map(e => ({
+      ...e,
+      time: new Date(e.time).toLocaleDateString('fr-FR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+    }))
 
   const kpis = [
     { label: 'Total utilisateurs', value: users.length.toLocaleString('fr-FR'), icon: Users, trend: '+12%', up: true, color: 'from-blue-500 to-blue-600' },
@@ -1291,7 +1134,7 @@ function MessagesPage({ conversations }: { conversations: MockConversation[] }) 
 // ============================================
 // PAGE: CONNEXIONS
 // ============================================
-function ConnectionsPage({ connections, chartData }: { connections: MockConnection[]; chartData: ReturnType<typeof generateChart30Days> }) {
+function ConnectionsPage({ connections, chartData }: { connections: MockConnection[]; chartData: any[] }) {
   const [selectedConn, setSelectedConn] = useState<MockConnection | null>(null)
   const [showDetail, setShowDetail] = useState(false)
 
@@ -1665,7 +1508,7 @@ function ReportsPage({ reports }: { reports: MockReport[] }) {
 // ============================================
 // PAGE: PREMIUM
 // ============================================
-function PremiumPage({ premiumSubs, chartData }: { premiumSubs: MockPremium[]; chartData: ReturnType<typeof generateChart30Days> }) {
+function PremiumPage({ premiumSubs, chartData }: { premiumSubs: MockPremium[]; chartData: any[] }) {
   const activePremiums = premiumSubs.filter(p => p.status === 'Actif')
   const monthlyRevenue = activePremiums.reduce((a, p) => a + p.price, 0)
   const conversionRate = 24 // simulated percentage
@@ -1823,7 +1666,10 @@ function PremiumConfigsTable({ currentUserId }: { currentUserId: string }) {
     try {
       const res = await fetch('/api/credits/active-features/configs', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-admin-secret': localStorage.getItem('adminSecret') || ''
+        },
         body: JSON.stringify({ action, ...updates, requesterId: currentUserId }),
       })
       if (res.ok) {
@@ -1918,13 +1764,64 @@ function SettingsPage({ currentUserId }: { currentUserId: string }) {
   const [openSignups, setOpenSignups] = useState(true)
   const [preNumberLimit, setPreNumberLimit] = useState('3')
   const [momentsDuration, setMomentsDuration] = useState('24')
+  const [adminSecretInput, setAdminSecretInput] = useState('')
+
+  useEffect(() => {
+    setAdminSecretInput(localStorage.getItem('adminSecret') || '')
+  }, [])
+
   const [boostsDuration, setBoostsDuration] = useState('30')
   const [emailNotif, setEmailNotif] = useState(true)
   const [pushNotif, setPushNotif] = useState(true)
   const [reportNotif, setReportNotif] = useState(true)
 
+  const handleSaveSettings = async () => {
+    try {
+      const res = await fetch('/api/admin/config', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-admin-secret': localStorage.getItem('adminSecret') || ''
+        },
+        body: JSON.stringify({
+          requesterId: currentUserId,
+          configData: {
+            appName,
+            appDesc,
+            contactEmail,
+            openSignups,
+            preNumberLimit,
+            momentsDuration,
+            requirePhoneVerification: config.requirePhoneVerification
+          }
+        })
+      });
+      if (res.ok) alert('Configuration sauvegardée avec succès');
+      else alert('Erreur lors de la sauvegarde');
+    } catch (e) {
+      alert('Erreur réseau');
+    }
+  }
+
   return (
     <div className="space-y-6 max-w-3xl">
+      {/* Security Settings */}
+      <Card className="shadow-md border-rose-500">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-rose-600"><Key className="size-5" /> Sécurité Admin</CardTitle>
+          <CardDescription>Clé secrète requise pour modifier les paramètres globaux de l'application</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="adminSecret">Clé Secrète (ADMIN_SECRET)</Label>
+            <Input id="adminSecret" type="password" value={adminSecretInput} onChange={e => {
+              setAdminSecretInput(e.target.value)
+              localStorage.setItem('adminSecret', e.target.value)
+            }} placeholder="Entrez la clé secrète du serveur" />
+          </div>
+        </CardContent>
+      </Card>
+
       {/* App Settings */}
       <Card className="shadow-md">
         <CardHeader>
@@ -1944,7 +1841,7 @@ function SettingsPage({ currentUserId }: { currentUserId: string }) {
             <Label htmlFor="contactEmail">Email de contact</Label>
             <Input id="contactEmail" type="email" value={contactEmail} onChange={e => setContactEmail(e.target.value)} />
           </div>
-          <Button className="bg-rose-600 hover:bg-rose-700">Sauvegarder</Button>
+          <Button onClick={handleSaveSettings} className="bg-rose-600 hover:bg-rose-700">Sauvegarder</Button>
         </CardContent>
       </Card>
 
@@ -2067,10 +1964,13 @@ function SettingsPage({ currentUserId }: { currentUserId: string }) {
           <Separator />
           <div className="flex items-center justify-between">
             <div>
-              <div className="font-medium text-sm">Alerte signalement</div>
-              <div className="text-xs text-muted-foreground">Notification immédiate pour chaque signalement</div>
+              <div className="font-medium text-sm">Notifications de signalement</div>
+              <div className="text-xs text-muted-foreground">Alertes immédiates pour les signalements graves</div>
             </div>
             <Switch checked={reportNotif} onCheckedChange={setReportNotif} />
+          </div>
+          <div className="pt-2">
+            <Button onClick={handleSaveSettings} className="bg-rose-600 hover:bg-rose-700">Sauvegarder les notifications</Button>
           </div>
         </CardContent>
       </Card>
@@ -2611,7 +2511,7 @@ function NotificationsPage() {
 // ============================================
 // PAGE: GAMIFICATION
 // ============================================
-function GamificationPage() {
+function GamificationPage({ currentUserId }: { currentUserId: string }) {
   const [badges, setBadges] = useState([
     { id: 'b1', name: 'Vérifié', icon: '✅', description: 'Profil vérifié', condition: 'Vérification du numéro', active: true },
     { id: 'b2', name: 'Populaire', icon: '🔥', description: 'Très demandé', condition: '50+ demandes reçues', active: true },
@@ -2622,6 +2522,23 @@ function GamificationPage() {
     { id: 'b7', name: 'Sociable', icon: '🤝', description: 'Beaucoup de connexions', condition: '10+ connexions', active: false },
     { id: 'b8', name: 'Photogénique', icon: '📸', description: 'Profil avec de belles photos', condition: '3+ photos avec score élevé', active: false },
   ])
+
+  const handleSaveGamification = async () => {
+    try {
+      const res = await fetch('/api/admin/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requesterId: currentUserId,
+          configData: { gamification: { scoreWeights } }
+        })
+      });
+      if (res.ok) alert('Gamification sauvegardée');
+      else alert('Erreur');
+    } catch (e) {
+      alert('Erreur réseau');
+    }
+  }
 
   const [streakResetTime, setStreakResetTime] = useState('04:00')
   const [streakReward, setStreakReward] = useState('boost')
@@ -2813,7 +2730,7 @@ function GamificationPage() {
               ⚠️ Le total des poids est de {totalWeight}% au lieu de 100%
             </div>
           )}
-          <Button className="bg-rose-600 hover:bg-rose-700">Sauvegarder les poids</Button>
+          <Button onClick={handleSaveGamification} className="bg-rose-600 hover:bg-rose-700">Sauvegarder les poids</Button>
         </CardContent>
       </Card>
 
@@ -2863,29 +2780,54 @@ export default function AdminDashboard({ currentUser, onBackToApp }: AdminDashbo
   const [searchQuery, setSearchQuery] = useState('')
   const [showNotifications, setShowNotifications] = useState(false)
 
-  // Generate and manage real database users & fallback mocks
   const [users, setUsers] = useState<MockUser[]>([])
-  const [isLoadingUsers, setIsLoadingUsers] = useState(true)
+  const [requests, setRequests] = useState<MockRequest[]>([])
+  const [conversations, setConversations] = useState<MockConversation[]>([])
+  const [connections, setConnections] = useState<MockConnection[]>([])
+  const [moments, setMoments] = useState<MockMoment[]>([])
+  const [reports, setReports] = useState<MockReport[]>([])
+  const [premiumSubs, setPremiumSubs] = useState<MockPremium[]>([])
+  const [chartData, setChartData] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    async function loadUsers() {
+    async function loadData() {
       if (!currentUser?.id) return
+      setIsLoading(true)
       try {
-        setIsLoadingUsers(true)
-        const res = await fetch(`/api/admin/users?requesterId=${currentUser.id}`)
-        if (res.ok) {
-          const data = await res.json()
-          if (data.users) {
-            setUsers(data.users)
-          }
+        const id = currentUser.id
+        const [
+          resUsers, resStats, resRequests, resConvs, resConns, resMoments, resReports, resPremium
+        ] = await Promise.all([
+          fetch(`/api/admin/users?requesterId=${id}`),
+          fetch(`/api/admin/dashboard-stats?requesterId=${id}`),
+          fetch(`/api/admin/requests?requesterId=${id}`),
+          fetch(`/api/admin/conversations?requesterId=${id}`),
+          fetch(`/api/admin/connections?requesterId=${id}`),
+          fetch(`/api/admin/moments?requesterId=${id}`),
+          fetch(`/api/admin/reports?requesterId=${id}`),
+          fetch(`/api/admin/premium?requesterId=${id}`),
+        ])
+
+        if (resUsers.ok) setUsers((await resUsers.json()).users || [])
+        if (resStats.ok) {
+          const stats = await resStats.json()
+          if (stats.chartData) setChartData(stats.chartData)
         }
+        if (resRequests.ok) setRequests((await resRequests.json()).requests || [])
+        if (resConvs.ok) setConversations((await resConvs.json()).conversations || [])
+        if (resConns.ok) setConnections((await resConns.json()).connections || [])
+        if (resMoments.ok) setMoments((await resMoments.json()).moments || [])
+        if (resReports.ok) setReports((await resReports.json()).reports || [])
+        if (resPremium.ok) setPremiumSubs((await resPremium.json()).premium || [])
+
       } catch (err) {
-        console.error("Failed to load real users", err)
+        console.error("Failed to load admin data", err)
       } finally {
-        setIsLoadingUsers(false)
+        setIsLoading(false)
       }
     }
-    loadUsers()
+    loadData()
   }, [currentUser])
 
   const handleRoleChange = async (targetUserId: string, newRole: 'user' | 'admin') => {
@@ -2902,7 +2844,6 @@ export default function AdminDashboard({ currentUser, onBackToApp }: AdminDashbo
 
       const data = await res.json()
       if (res.ok && data.success) {
-        // Update local users list
         setUsers((prev) =>
           prev.map((u) => (u.id === targetUserId ? { ...u, role: newRole } : u))
         )
@@ -2915,22 +2856,23 @@ export default function AdminDashboard({ currentUser, onBackToApp }: AdminDashbo
     }
   }
 
-  // Fallbacks for other mock data pages (requests, conversations, connections, etc.)
-  const usersForMocks = useMemo(() => users.length ? users : generateMockUsers(), [users])
-  const requests = useMemo(() => generateMockRequests(usersForMocks), [usersForMocks])
-  const conversations = useMemo(() => generateMockConversations(usersForMocks), [usersForMocks])
-  const connections = useMemo(() => generateMockConnections(usersForMocks), [usersForMocks])
-  const moments = useMemo(() => generateMockMoments(usersForMocks), [usersForMocks])
-  const reports = useMemo(() => generateMockReports(usersForMocks), [usersForMocks])
-  const premiumSubs = useMemo(() => generateMockPremium(usersForMocks), [usersForMocks])
-  const chartData = useMemo(() => generateChart30Days(), [])
+  const pendingReportsCount = reports.length
+  const newUsersTodayCount = users.filter(u => new Date(u.createdAt).toDateString() === new Date().toDateString()).length
+  const pendingRequestsCount = requests.filter(r => r.status === 'pending').length
 
-  const notifications = [
-    { text: '3 nouveaux signalements en attente', time: 'il y a 5 min', read: false },
-    { text: 'Pic d\'inscriptions détecté', time: 'il y a 30 min', read: false },
-    { text: 'Mise à jour serveur planifiée', time: 'il y a 2h', read: true },
-    { text: 'Rapport hebdomadaire disponible', time: 'il y a 5h', read: true },
-  ]
+  const notifications = []
+  if (pendingReportsCount > 0) {
+    notifications.push({ text: `${pendingReportsCount} signalement(s) total enregistré(s)`, time: "Récent", read: false })
+  }
+  if (newUsersTodayCount > 0) {
+    notifications.push({ text: `${newUsersTodayCount} nouvelle(s) inscription(s) aujourd'hui`, time: "Aujourd'hui", read: false })
+  }
+  if (pendingRequestsCount > 0) {
+    notifications.push({ text: `${pendingRequestsCount} demande(s) de numéro en attente`, time: "En cours", read: true })
+  }
+  if (notifications.length === 0) {
+    notifications.push({ text: "Aucune nouvelle notification", time: "À l'instant", read: true })
+  }
 
   const pageTitle: Record<PageKey, string> = {
     overview: 'Vue d\'ensemble',
@@ -2941,9 +2883,11 @@ export default function AdminDashboard({ currentUser, onBackToApp }: AdminDashbo
     moments: 'Moments',
     reports: 'Signalements',
     premium: 'Premium',
+    payments: 'Paiements',
     notifications: 'Notifications Push',
     settings: 'Configuration',
     gamification: 'Gamification',
+    analytics: 'Analytiques',
   }
 
   return (
@@ -3078,7 +3022,7 @@ export default function AdminDashboard({ currentUser, onBackToApp }: AdminDashbo
             {/* Admin Info */}
             <div className="flex items-center gap-2 pl-3 border-l">
               <Avatar className="h-8 w-8">
-                <AvatarImage src={currentUser?.avatar || `${AVATAR_BASE}68`} />
+                <AvatarImage src={currentUser?.avatar || undefined} />
                 <AvatarFallback>{currentUser?.firstName?.[0] || 'A'}</AvatarFallback>
               </Avatar>
               <div className="hidden sm:block">
@@ -3102,13 +3046,13 @@ export default function AdminDashboard({ currentUser, onBackToApp }: AdminDashbo
               transition={{ duration: 0.2 }}
             >
               {activePage === 'overview' && (
-                <OverviewPage users={usersForMocks} requests={requests} chartData={chartData} connections={connections} premiumSubs={premiumSubs} />
+                <OverviewPage users={users} requests={requests} chartData={chartData} connections={connections} premiumSubs={premiumSubs} />
               )}
               {activePage === 'users' && (
-                isLoadingUsers ? (
+                isLoading ? (
                   <div className="flex flex-col items-center justify-center h-64 gap-3">
                     <RefreshCw className="size-8 text-rose-500 animate-spin" />
-                    <span className="text-muted-foreground text-sm font-medium">Chargement des utilisateurs en cours...</span>
+                    <span className="text-muted-foreground text-sm font-medium">Chargement en cours...</span>
                   </div>
                 ) : (
                   <UsersPage users={users} currentUser={currentUser} onRoleChange={handleRoleChange} />
@@ -3120,9 +3064,11 @@ export default function AdminDashboard({ currentUser, onBackToApp }: AdminDashbo
               {activePage === 'moments' && <MomentsPage moments={moments} />}
               {activePage === 'reports' && <ReportsPage reports={reports} />}
               {activePage === 'premium' && <PremiumPage premiumSubs={premiumSubs} chartData={chartData} />}
+              {activePage === 'payments' && <AdminPaymentsTable />}
               {activePage === 'notifications' && <NotificationsPage />}
               {activePage === 'settings' && <SettingsPage currentUserId={currentUser?.id} />}
-              {activePage === 'gamification' && <GamificationPage />}
+              {activePage === 'gamification' && <GamificationPage currentUserId={currentUser?.id} />}
+              {activePage === 'analytics' && <AdminAnalyticsTab currentUser={currentUser} />}
             </motion.div>
           </AnimatePresence>
         </main>

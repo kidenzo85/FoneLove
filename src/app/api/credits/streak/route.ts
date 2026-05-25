@@ -116,8 +116,12 @@ export async function POST(req: NextRequest) {
 
     if (dailyStreak.lastCheckIn) {
       const lastDate = new Date(dailyStreak.lastCheckIn)
-      const diffMs = now.getTime() - lastDate.getTime()
-      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+      
+      // Use calendar days instead of exact 24h periods
+      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+      const startOfLastCheckIn = new Date(lastDate.getFullYear(), lastDate.getMonth(), lastDate.getDate())
+      const diffMs = startOfToday.getTime() - startOfLastCheckIn.getTime()
+      const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24))
 
       if (diffDays === 1) {
         newStreak = dailyStreak.currentStreak + 1

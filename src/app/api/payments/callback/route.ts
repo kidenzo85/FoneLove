@@ -2,28 +2,54 @@ import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import type { CoolPayCallbackPayload } from '@/lib/coolpay'
 
+export const dynamic = 'force-dynamic'
+
 /**
- * POST /api/payments/callback
  * Webhook appelé par CoolPay après un paiement
- * 
- * CoolPay envoie les données de la transaction :
- * - transaction_ref, app_transaction_ref, status (SUCCESSFUL/FAILED/CANCELLED)
- * - operator_ref, operator, transaction_amount, etc.
- * 
- * ⚠️ Ce endpoint est appelé par CoolPay, pas par le frontend.
- * Il ne nécessite pas d'authentification utilisateur mais vérifie la cohérence des données.
+ * Gère GET et POST car certains opérateurs/passerelles utilisent différentes méthodes
  */
-export async function POST(req: NextRequest) {
+
+async function processCallback(req: NextRequest) {
   try {
-    const payload: CoolPayCallbackPayload = await req.json()
+    let payload: any = {}
 
-    console.log('[CoolPay Callback] Received:', JSON.stringify(payload))
+    // 1. Extraire les données selon la méthode HTTP
+    if (req.method === 'POST') {
+      const contentType = req.headers.get('content-type') || ''
+      if (contentType.includes('application/json')) {
+        try {
+          payload = await req.json()
+        } catch (e) {
+          console.error('[CoolPay Callback] Failed to parse JSON', e)
+        }
+      } else if (contentType.includes('application/x-www-form-urlencoded') || contentType.includes('multipart/form-data')) {
+        const formData = await req.formData()
+        payload = Object.fromEntries(formData.entries())
+      } else {
+        const text = await req.text()
+        try {
+          payload = JSON.parse(text)
+        } catch {
+          const params = new URLSearchParams(text)
+          payload = Object.fromEntries(params.entries())
+        }
+      }
+    } else {
+      // GET
+      payload = Object.fromEntries(req.nextUrl.searchParams.entries())
+    }
 
-    const { transaction_ref, app_transaction_ref, status } = payload
+    console.log(`[CoolPay Callback ${req.method}] Received:`, JSON.stringify(payload))
+
+    // Fallbacks possibles pour les noms de champs
+    const transaction_ref = payload.transaction_ref || payload.transactionRef
+    const app_transaction_ref = payload.app_transaction_ref || payload.appTransactionRef || payload.orderId
+    const status = payload.status || payload.transaction_status || ''
 
     if (!app_transaction_ref) {
-      console.error('[CoolPay Callback] Missing app_transaction_ref')
-      return NextResponse.json({ error: 'Missing app_transaction_ref' }, { status: 400 })
+      console.error('[CoolPay Callback] Missing app_transaction_ref. Available keys:', Object.keys(payload))
+      // On retourne 200 pour dire à CoolPay qu'on a bien reçu, même si on ne peut rien faire
+      return NextResponse.json({ message: 'Missing reference, ignored' }, { status: 200 })
     }
 
     // Trouver la commande correspondante
@@ -33,19 +59,19 @@ export async function POST(req: NextRequest) {
 
     if (!order) {
       console.error('[CoolPay Callback] Order not found:', app_transaction_ref)
-      return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+      return NextResponse.json({ message: 'Order not found, ignored' }, { status: 200 })
     }
 
-    // Éviter le double traitement
-    if (order.status === 'success') {
-      console.log('[CoolPay Callback] Order already processed:', order.id)
-      return NextResponse.json({ message: 'Already processed' })
+    // Éviter le double traitement préliminaire (optimisation)
+    if (order.status === 'success' || order.status === 'failed' || order.status === 'cancelled') {
+      console.log('[CoolPay Callback] Order already processed or in final state:', order.id)
+      return NextResponse.json({ message: 'Already processed' }, { status: 200 })
     }
 
     // Normaliser le statut CoolPay
     const normalizedStatus = (status || '').toUpperCase()
 
-    if (normalizedStatus === 'SUCCESSFUL') {
+    if (normalizedStatus === 'SUCCESSFUL' || normalizedStatus === 'SUCCESS') {
       // === PAIEMENT RÉUSSI ===
       await handleSuccessfulPayment(order, payload)
     } else if (normalizedStatus === 'FAILED') {
@@ -89,12 +115,24 @@ export async function POST(req: NextRequest) {
     }
 
     // CoolPay attend un 200 OK
-    return NextResponse.json({ message: 'OK' })
+    return NextResponse.json({ status: 'success', message: 'OK' })
   } catch (error) {
-    console.error('[CoolPay Callback] Error:', error)
-    // Retourner 200 quand même pour éviter les retentatives infinies
-    return NextResponse.json({ message: 'Error logged' })
+    console.error('[CoolPay Callback] Critical Error:', error)
+    // Retourner 200 quand même pour éviter les retentatives infinies de la part de la passerelle
+    return NextResponse.json({ message: 'Error logged' }, { status: 200 })
   }
+}
+
+export async function POST(req: NextRequest) {
+  return processCallback(req)
+}
+
+export async function GET(req: NextRequest) {
+  // Si on reçoit des paramètres, c'est probablement un callback via GET ou une redirection webhook
+  if (req.nextUrl.searchParams.has('status') || req.nextUrl.searchParams.has('transaction_ref') || req.nextUrl.searchParams.has('app_transaction_ref') || req.nextUrl.searchParams.has('orderId')) {
+    return processCallback(req)
+  }
+  return NextResponse.json({ status: 'ok', message: 'CoolPay callback endpoint ready' })
 }
 
 /**
@@ -113,28 +151,38 @@ async function handleSuccessfulPayment(
     coolpayRef: string | null
     metadata: string | null
   },
-  payload: CoolPayCallbackPayload
+  payload: any
 ) {
   const meta = JSON.parse(order.metadata || '{}')
   const isFoneLoveRecharge = order.packType.startsWith('fonelove_') || meta.type === 'fonelove_recharge'
 
   await prisma.$transaction(async (tx) => {
-    // 1. Mettre à jour la commande
-    await tx.paymentOrder.update({
-      where: { id: order.id },
+    // 1. Mettre à jour la commande SEULEMENT SI elle n'est pas déjà complétée
+    // C'est le verrou de concurrence optimiste
+    const updateResult = await tx.paymentOrder.updateMany({
+      where: { 
+        id: order.id,
+        status: { notIn: ['success', 'failed', 'cancelled'] } // N'est pas déjà dans un état final
+      },
       data: {
         status: 'success',
-        coolpayRef: payload.transaction_ref || order.coolpayRef,
+        coolpayRef: payload.transaction_ref || payload.transactionRef || order.coolpayRef,
         coolpayStatus: 'SUCCESSFUL',
         paidAt: new Date(),
         metadata: JSON.stringify({
           ...meta,
           callbackPayload: payload,
-          operatorRef: payload.operator_ref,
+          operatorRef: payload.operator_ref || payload.operatorRef,
           operator: payload.operator,
         }),
       },
     })
+
+    // Si aucune ligne n'a été mise à jour, c'est qu'un autre webhook l'a fait juste avant nous
+    if (updateResult.count === 0) {
+        console.log('[CoolPay Callback] Concurrent webhook detected, skipping processing for order:', order.id)
+        return; // On sort sans rien créditer
+    }
 
     if (isFoneLoveRecharge) {
       // ===== CRÉDIT FONELOVE =====
@@ -169,15 +217,13 @@ async function handleSuccessfulPayment(
       })
     } else {
       // ===== CRÉDIT CONNECTCOINS =====
-      let wallet = await tx.wallet.findUnique({
+      // Créer ou mettre à jour le wallet CC avec upsert pour éviter les UniqueConstraintViolation
+      // en cas de concurrence imprévue (bien que le updateMany plus haut devrait l'empêcher)
+      const wallet = await tx.wallet.upsert({
         where: { userId: order.userId },
+        create: { userId: order.userId },
+        update: {} // On ne fait rien si le wallet existe déjà, on le mettra à jour plus bas
       })
-
-      if (!wallet) {
-        wallet = await tx.wallet.create({
-          data: { userId: order.userId },
-        })
-      }
 
       // Créer la transaction d'achat CC
       await tx.transaction.create({
@@ -195,7 +241,7 @@ async function handleSuccessfulPayment(
             firstPurchaseBonus: meta.firstPurchaseBonus || 0,
             amountXAF: order.amountXAF,
             paymentMethod: 'coolpay',
-            coolpayRef: payload.transaction_ref,
+            coolpayRef: payload.transaction_ref || payload.transactionRef,
             operator: payload.operator,
           }),
         },
@@ -232,7 +278,3 @@ async function handleSuccessfulPayment(
   })
 }
 
-// Permettre aussi les GET pour les tests de connexion
-export async function GET() {
-  return NextResponse.json({ status: 'ok', message: 'CoolPay callback endpoint ready' })
-}

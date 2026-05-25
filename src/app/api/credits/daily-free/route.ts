@@ -26,13 +26,21 @@ export async function POST(req: NextRequest) {
 
     // Interactive transaction to group reads/writes and ensure atomicity/performance
     const result = await prisma.$transaction(async (tx) => {
-      // Get or create wallet
-      let wallet = await tx.wallet.findUnique({ where: { userId } })
-      if (!wallet) {
-        wallet = await tx.wallet.create({ data: { userId } })
-      }
+      // 1. Concurrent Read/Create (Upsert) for Wallet and Streak
+      const [wallet, dailyStreak] = await Promise.all([
+        tx.wallet.upsert({
+          where: { userId },
+          update: {},
+          create: { userId }
+        }),
+        tx.dailyStreak.upsert({
+          where: { userId },
+          update: {},
+          create: { userId }
+        })
+      ])
 
-      // Check if already claimed today
+      // 2. Check if already claimed today
       if (wallet.dailyFreeClaimed && wallet.lastFreeClaimAt) {
         const lastClaim = new Date(wallet.lastFreeClaimAt)
         const isSameDay =
@@ -45,20 +53,18 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // Get or create daily streak
-      let dailyStreak = await tx.dailyStreak.findUnique({ where: { userId } })
-      if (!dailyStreak) {
-        dailyStreak = await tx.dailyStreak.create({ data: { userId } })
-      }
-
-      // Calculate streak
+      // 3. Calculate streak
       const lastCheckIn = dailyStreak.lastCheckIn
       let newStreak = dailyStreak.currentStreak
 
       if (lastCheckIn) {
         const lastDate = new Date(lastCheckIn)
-        const diffMs = now.getTime() - lastDate.getTime()
-        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+        
+        // Use calendar days instead of exact 24h periods
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+        const startOfLastCheckIn = new Date(lastDate.getFullYear(), lastDate.getMonth(), lastDate.getDate())
+        const diffMs = startOfToday.getTime() - startOfLastCheckIn.getTime()
+        const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24))
 
         if (diffDays === 1) {
           newStreak = dailyStreak.currentStreak + 1
@@ -72,44 +78,42 @@ export async function POST(req: NextRequest) {
       const streakBonus = Math.min(newStreak - 1, MAX_STREAK_BONUS)
       const totalDailyFree = BASE_DAILY_FREE + Math.max(0, streakBonus)
 
-      // Update wallet
-      const updatedWallet = await tx.wallet.update({
-        where: { id: wallet.id },
-        data: {
-          balance: { increment: totalDailyFree },
-          totalEarned: { increment: totalDailyFree },
-          dailyFreeClaimed: true,
-          dailyFreeStreak: newStreak,
-          lastFreeClaimAt: now,
-        },
-      })
-
-      // Update daily streak
-      await tx.dailyStreak.update({
-        where: { id: dailyStreak.id },
-        data: {
-          currentStreak: newStreak,
-          longestStreak: Math.max(newStreak, dailyStreak.longestStreak),
-          lastCheckIn: now,
-          todayBonusClaimed: true,
-        },
-      })
-
-      // Create transaction record
-      await tx.transaction.create({
-        data: {
-          walletId: wallet.id,
-          type: newStreak > 1 ? 'earn_streak' : 'earn_free',
-          amount: totalDailyFree,
-          action: null,
-          description: `CC quotidiens gratuits: ${BASE_DAILY_FREE} CC de base${streakBonus > 0 ? ` + ${streakBonus} CC bonus streak (${newStreak} jours)` : ''}`,
-          metadata: JSON.stringify({
-            baseAmount: BASE_DAILY_FREE,
-            streakBonus,
-            streakDays: newStreak,
-          }),
-        },
-      })
+      // 4. Concurrent Write (Update/Create)
+      const [updatedWallet] = await Promise.all([
+        tx.wallet.update({
+          where: { id: wallet.id },
+          data: {
+            balance: { increment: totalDailyFree },
+            totalEarned: { increment: totalDailyFree },
+            dailyFreeClaimed: true,
+            dailyFreeStreak: newStreak,
+            lastFreeClaimAt: now,
+          },
+        }),
+        tx.dailyStreak.update({
+          where: { id: dailyStreak.id },
+          data: {
+            currentStreak: newStreak,
+            longestStreak: Math.max(newStreak, dailyStreak.longestStreak),
+            lastCheckIn: now,
+            todayBonusClaimed: true,
+          },
+        }),
+        tx.transaction.create({
+          data: {
+            walletId: wallet.id,
+            type: newStreak > 1 ? 'earn_streak' : 'earn_free',
+            amount: totalDailyFree,
+            action: null,
+            description: `CC quotidiens gratuits: ${BASE_DAILY_FREE} CC de base${streakBonus > 0 ? ` + ${streakBonus} CC bonus streak (${newStreak} jours)` : ''}`,
+            metadata: JSON.stringify({
+              baseAmount: BASE_DAILY_FREE,
+              streakBonus,
+              streakDays: newStreak,
+            }),
+          },
+        })
+      ])
 
       return {
         updatedWallet,
@@ -117,6 +121,9 @@ export async function POST(req: NextRequest) {
         streakBonus,
         totalDailyFree
       }
+    }, {
+      maxWait: 10000, // 10 seconds to wait for a connection
+      timeout: 20000, // 20 seconds for the entire transaction
     })
 
     if ('alreadyClaimed' in result) {

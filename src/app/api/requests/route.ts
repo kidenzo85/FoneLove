@@ -154,7 +154,7 @@ export async function GET(req: NextRequest) {
     }
   } catch (error) {
     console.error('Request GET error:', error)
-    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
+    return NextResponse.json({ error: 'Erreur serveur', details: (error as any).message, stack: (error as any).stack }, { status: 500 })
   }
 }
 

@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
         id: gift.id,
         amount: gift.amount,
         message: gift.message,
-        senderName: gift.sender.user.firstName,
+        senderName: gift.sender?.user?.firstName || 'Quelqu\'un',
       }
     })
   } catch (error) {

@@ -11,7 +11,6 @@ interface ProfileScoreProps {
 
 export default function ProfileScore({ score, size = 'md' }: ProfileScoreProps) {
   const [animatedScore, setAnimatedScore] = useState(0)
-  const [hasAnimated, setHasAnimated] = useState(false)
 
   const sizeMap = {
     sm: { outer: 'h-12 w-12', text: 'text-xs', border: 3 },
@@ -24,8 +23,10 @@ export default function ProfileScore({ score, size = 'md' }: ProfileScoreProps) 
   const offset = circumference - (animatedScore / 100) * circumference
 
   useEffect(() => {
-    if (hasAnimated) return
-    setHasAnimated(true)
+    if (score === 0) {
+      setAnimatedScore(0)
+      return
+    }
 
     // Animate the score counting up
     const duration = 1500
@@ -44,7 +45,7 @@ export default function ProfileScore({ score, size = 'md' }: ProfileScoreProps) 
     }, duration / steps)
 
     return () => clearInterval(timer)
-  }, [score, hasAnimated])
+  }, [score])
 
   return (
     <motion.div

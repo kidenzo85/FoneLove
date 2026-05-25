@@ -65,12 +65,35 @@ export async function GET(req: NextRequest) {
       })),
     ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 
+    const orders = await prisma.paymentOrder.findMany({
+      where: {
+        userId,
+        OR: [
+          { packType: { startsWith: 'fonelove_' } },
+          { ccAmount: 0 }
+        ]
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 30,
+    })
+
+    const formattedOrders = orders.map(o => ({
+      id: o.id,
+      packType: o.packType,
+      amountXAF: o.amountXAF,
+      ccAmount: o.ccAmount,
+      status: o.status,
+      createdAt: o.createdAt.toISOString(),
+      metadata: o.metadata,
+    }))
+
     return NextResponse.json({
       transactions: transactions.map(t => ({
         ...t,
         createdAt: t.createdAt.toISOString(),
       })),
       gifts: enrichedGifts.slice(0, 30),
+      orders: formattedOrders,
     })
   } catch (err) {
     console.error('FoneLove history error:', err)

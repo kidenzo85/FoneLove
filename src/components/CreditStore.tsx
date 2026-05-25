@@ -29,6 +29,8 @@ import { useAppStore } from '@/lib/store'
 import { useT } from '@/lib/i18n/context'
 import { cn } from '@/lib/utils'
 import SharedGiftOverlay from '@/components/SharedGiftOverlay'
+import { PremiumAvatarFrame } from '@/components/premium/PremiumAvatarFrame'
+import { PremiumEffect } from '@/components/premium/PremiumEffects'
 
 // ===== Animated Counter =====
 function AnimatedNumber({ value, duration = 0.8 }: { value: number; duration?: number }) {
@@ -427,7 +429,7 @@ function ActionCatalogItem({ action, cost, balance, onSpend, onInfoClick }: {
           : 'border-border/30 bg-card/60 hover:border-amber-500/30 hover:bg-amber-500/5 cursor-pointer'
       )}
     >
-      {/* Information Button — using div to avoid nested interactive elements */}
+      {/* Information Button */}
       <div
         role="button"
         tabIndex={0}
@@ -442,9 +444,11 @@ function ActionCatalogItem({ action, cost, balance, onSpend, onInfoClick }: {
             onInfoClick(action)
           }
         }}
-        className="absolute top-1.5 right-1.5 z-20 flex h-4.5 w-4.5 items-center justify-center rounded-full bg-white/10 hover:bg-white/20 border border-white/10 text-white/80 hover:text-white transition-colors cursor-pointer"
+        className="absolute top-1.5 right-1.5 z-20 flex h-7 w-7 items-center justify-center cursor-pointer group"
       >
-        <span className="text-[9px] font-black">i</span>
+        <div className="flex h-[15px] w-[15px] items-center justify-center rounded-full bg-white/15 group-hover:bg-white/30 text-white/60 group-hover:text-white transition-colors shadow-sm">
+          <span className="text-[9px] font-bold">i</span>
+        </div>
       </div>
 
       {/* Insufficient balance shimmer indicator */}
@@ -622,7 +626,11 @@ function PremiumActionPreviewDialog({
 
   return (
     <Dialog open={!!action} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-[340px] rounded-3xl bg-neutral-900 border border-neutral-800 text-white p-5 overflow-hidden">
+      <DialogContent 
+        onInteractOutside={(e) => e.preventDefault()}
+        onCloseAutoFocus={(e) => e.preventDefault()}
+        className="max-w-[340px] rounded-3xl bg-neutral-900 border border-neutral-800 text-white p-5 overflow-hidden"
+      >
         <DialogHeader className="p-0 space-y-1">
           <DialogTitle className="text-xl font-black text-center flex items-center justify-center gap-2">
             <span>{info.icon}</span> {info.title}
@@ -640,66 +648,51 @@ function PremiumActionPreviewDialog({
 
             {/* Visual simulation content depending on action */}
             {action === 'boost' && (
-              <div className="flex flex-col items-center justify-center gap-2">
-                <motion.div
-                  animate={{ y: [0, -10, 0] }}
-                  transition={{ repeat: Infinity, duration: 2, ease: 'easeInOut' }}
-                  className="text-5xl"
-                >
-                  🚀
-                </motion.div>
-                <div className="flex flex-col items-center">
-                  <div className="h-2 w-16 bg-orange-500/20 border border-orange-500/40 rounded-full overflow-hidden">
-                    <motion.div
-                      className="h-full bg-gradient-to-r from-orange-500 to-yellow-400"
-                      animate={{ width: ['0%', '100%'] }}
-                      transition={{ duration: 2, repeat: Infinity }}
-                    />
-                  </div>
+              <PremiumEffect action="boost">
+                <div className="flex flex-col items-center justify-center gap-2 w-[120px] h-[120px] rounded-full bg-orange-500/10 backdrop-blur-sm border border-orange-500/30">
+                  <motion.div
+                    animate={{ y: [0, -10, 0] }}
+                    transition={{ repeat: Infinity, duration: 2, ease: 'easeInOut' }}
+                    className="text-5xl"
+                  >
+                    🚀
+                  </motion.div>
                   <span className="text-[9px] text-orange-400 font-bold uppercase tracking-widest mt-1">Boosté 10x</span>
                 </div>
-              </div>
+              </PremiumEffect>
             )}
 
             {action === 'super_request' && (
-              <div className="flex flex-col items-center justify-center gap-1.5 p-2 bg-gradient-to-br from-yellow-500/10 to-amber-500/20 border border-yellow-500/30 rounded-xl">
-                <span className="text-3xl">⭐</span>
-                <span className="text-[10px] font-bold text-yellow-400 text-center uppercase tracking-wider">Demande Étoilée</span>
-                <div className="text-[8px] text-white/70 text-center leading-tight">Placée tout en haut des demandes reçues !</div>
+              <div className="w-[140px]">
+                <PremiumEffect action="super_request">
+                  <div className="flex flex-col items-center justify-center gap-1.5 p-3 bg-neutral-900 rounded-2xl">
+                    <div className="h-12 w-12 rounded-full overflow-hidden">
+                      <img src="https://i.pravatar.cc/150?img=11" alt="avatar" />
+                    </div>
+                    <span className="text-[10px] font-bold text-yellow-400 text-center uppercase tracking-wider">Demande Étoilée</span>
+                    <div className="text-[8px] text-white/70 text-center leading-tight">Priorité #1</div>
+                  </div>
+                </PremiumEffect>
               </div>
             )}
 
             {action === 'rose_connect' && (
-              <div className="flex flex-col items-center justify-center gap-2">
-                <motion.div
-                  animate={{ scale: [1, 1.2, 1], rotate: [0, 5, -5, 0] }}
-                  transition={{ repeat: Infinity, duration: 3 }}
-                  className="text-5xl drop-shadow-[0_0_15px_rgba(239,68,68,0.5)]"
-                >
-                  🌹
-                </motion.div>
-                <span className="text-[9px] text-red-400 font-bold tracking-wider">Rose Connect envoyée</span>
+              <div className="w-[140px]">
+                <PremiumEffect action="rose_connect">
+                  <div className="flex flex-col items-center justify-center gap-2 p-3 bg-neutral-900 rounded-2xl border border-rose-500/30">
+                    <div className="text-5xl">🌹</div>
+                    <span className="text-[9px] text-rose-400 font-bold tracking-wider">Coup de cœur</span>
+                  </div>
+                </PremiumEffect>
               </div>
             )}
 
             {(action === 'theme_flame' || action === 'theme_star' || action === 'theme_aura') && (
-              <div className="relative">
-                {/* Avatar with theme border */}
-                <div className="relative h-20 w-20 rounded-full flex items-center justify-center overflow-hidden z-10">
-                  <img src="https://i.pravatar.cc/100?img=47" alt="Mock profile" className="h-full w-full object-cover" />
-                </div>
-                {/* Frame overlay */}
-                {action === 'theme_flame' && (
-                  <div className="absolute -inset-1.5 rounded-full border-2 border-red-500 animate-pulse drop-shadow-[0_0_8px_rgba(239,68,68,0.8)] z-20 pointer-events-none animate-bounce" />
-                )}
-                {action === 'theme_star' && (
-                  <div className="absolute -inset-1.5 rounded-full border-2 border-yellow-400 animate-pulse drop-shadow-[0_0_8px_rgba(250,204,21,0.8)] z-20 pointer-events-none" />
-                )}
-                {action === 'theme_aura' && (
-                  <div className="absolute -inset-1.5 rounded-full border-2 border-purple-500 animate-pulse drop-shadow-[0_0_8px_rgba(168,85,247,0.8)] z-20 pointer-events-none" />
-                )}
-              </div>
+              <PremiumAvatarFrame theme={action} size="xl">
+                <img src="https://i.pravatar.cc/150?img=47" alt="Mock profile" className="h-24 w-24 object-cover" />
+              </PremiumAvatarFrame>
             )}
+            {/* Other actions follow */}
 
             {action === 'custom_badge' && (
               <div className="relative flex flex-col items-center justify-center">
@@ -871,6 +864,65 @@ function TransactionItemRow({ tx }: { tx: { id: string; type: string; amount: nu
   )
 }
 
+// ===== Order History Item =====
+function OrderItemRow({ order }: { order: import('@/lib/connectcoin-store').PaymentOrderItem }) {
+  const { localeStr } = useT()
+  
+  const icon = '💳'
+  const dateStr = (() => {
+    try {
+      const d = new Date(order.createdAt)
+      const now = new Date()
+      if (d.toDateString() === now.toDateString()) {
+        return d.toLocaleTimeString(localeStr, { hour: '2-digit', minute: '2-digit' })
+      }
+      return d.toLocaleDateString(localeStr, { day: 'numeric', month: 'short' })
+    } catch {
+      return ''
+    }
+  })()
+
+  const statusColors: Record<string, string> = {
+    success: 'text-green-400',
+    pending: 'text-amber-400',
+    processing: 'text-amber-400',
+    failed: 'text-red-400',
+    cancelled: 'text-red-400',
+  }
+
+  const statusLabels: Record<string, string> = {
+    success: 'Réussi',
+    pending: 'En attente',
+    processing: 'En traitement',
+    failed: 'Échoué',
+    cancelled: 'Annulé',
+  }
+
+  const statusColor = statusColors[order.status] || 'text-muted-foreground'
+  const statusLabel = statusLabels[order.status] || order.status
+
+  return (
+    <div className="flex items-center gap-3 py-2">
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted/30 text-sm">
+        {icon}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-medium truncate uppercase">
+          Pack {order.packType}
+        </p>
+        <div className="flex items-center gap-2">
+          <p className="text-[9px] text-muted-foreground">{dateStr}</p>
+          <p className={cn("text-[9px] font-bold", statusColor)}>{statusLabel}</p>
+        </div>
+      </div>
+      <div className="text-right">
+        <p className="text-xs font-bold tabular-nums">+{order.ccAmount} CC</p>
+        <p className="text-[9px] text-muted-foreground">{order.amountXAF} FCFA</p>
+      </div>
+    </div>
+  )
+}
+
 // ===== Purchase Confirmation Dialog =====
 function PurchaseConfirmDialog({
   pack,
@@ -898,7 +950,11 @@ function PurchaseConfirmDialog({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && !processing && onClose()}>
-      <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-sm rounded-2xl border-border/50 bg-card/95 backdrop-blur-xl">
+      <DialogContent 
+        onInteractOutside={(e) => e.preventDefault()}
+        onCloseAutoFocus={(e) => e.preventDefault()}
+        className="max-w-[calc(100vw-2rem)] sm:max-w-sm rounded-2xl border-border/50 bg-card/95 backdrop-blur-xl"
+      >
         <DialogTitle className="sr-only">{pack ? t('store.packName', { name: pack.name }) : 'Chargement...'}</DialogTitle>
         <DialogDescription className="sr-only">{pack ? t('store.confirmPurchase', { n: pack.cc + pack.bonusCC }) : ''}</DialogDescription>
         <AnimatePresence mode="wait">
@@ -1013,6 +1069,7 @@ export default function CreditStore() {
     spendCredits,
     selectedPackType,
     setSelectedPackType,
+    orders,
   } = useConnectCoinStore()
   const currentUser = useAppStore((s) => s.currentUser)
   const { packPrices } = useCurrencyStore()
@@ -1089,9 +1146,22 @@ export default function CreditStore() {
 
   return (
     <>
-      <Sheet open={showCreditStore} onOpenChange={setShowCreditStore}>
+      <Sheet open={showCreditStore} onOpenChange={(open) => {
+        if (!open) {
+          // Prevent closing if a sub-dialog is currently open
+          const state = useConnectCoinStore.getState()
+          if (state.showSpendConfirm || state.showInsufficientBalance || selectedPack || previewAction) {
+            return
+          }
+        }
+        setShowCreditStore(open)
+      }}>
         <SheetContent
           side="bottom"
+          onInteractOutside={(e) => {
+            // Empêche la fermeture accidentelle du Sheet via un clic externe ou une perte de focus (ex: fermeture d'une sous-modale)
+            e.preventDefault()
+          }}
           className="h-[92dvh] sm:h-[92vh] rounded-t-3xl border-t-border/30 bg-background/98 backdrop-blur-xl px-0 pt-0 gap-0 overflow-hidden safe-area-bottom"
         >
           <SheetTitle className="sr-only">{t('store.title')}</SheetTitle>
@@ -1256,23 +1326,41 @@ export default function CreditStore() {
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: 20 }}
                   transition={{ duration: 0.2 }}
-                  className="py-4"
+                  className="py-4 space-y-6"
                 >
-                  <h3 className="text-xs font-bold text-muted-foreground mb-3 flex items-center gap-1.5">
-                    <History className="size-3" /> {t('store.recentTransactions')}
-                  </h3>
-                  {transactions.length === 0 ? (
-                    <div className="flex flex-col items-center py-8">
-                      <History className="size-8 text-muted-foreground mb-2" />
-                      <p className="text-xs text-muted-foreground">{t('store.noTransactions')}</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-0.5">
-                      {transactions.map((tx) => (
-                        <TransactionItemRow key={tx.id} tx={tx} />
-                      ))}
-                    </div>
-                  )}
+                  {/* ACHATS */}
+                  <div>
+                    <h3 className="text-xs font-bold text-muted-foreground mb-3 flex items-center gap-1.5">
+                      <ShoppingCart className="size-3" /> Historique des achats
+                    </h3>
+                    {orders.length === 0 ? (
+                      <p className="text-xs text-muted-foreground text-center py-4">Aucun achat</p>
+                    ) : (
+                      <div className="space-y-0.5">
+                        {orders.map((o) => (
+                          <OrderItemRow key={o.id} order={o} />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* TRANSACTIONS (Dépenses/Gains) */}
+                  <div>
+                    <h3 className="text-xs font-bold text-muted-foreground mb-3 flex items-center gap-1.5">
+                      <History className="size-3" /> {t('store.recentTransactions')}
+                    </h3>
+                    {transactions.length === 0 ? (
+                      <div className="flex flex-col items-center py-4">
+                        <p className="text-xs text-muted-foreground">{t('store.noTransactions')}</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-0.5">
+                        {transactions.map((tx) => (
+                          <TransactionItemRow key={tx.id} tx={tx} />
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </motion.div>
               )}
             </AnimatePresence>

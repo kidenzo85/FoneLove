@@ -625,12 +625,11 @@ function ConnectionsTab() {
       </div>
 
       <div className="flex-1 overflow-y-auto overscroll-y-contain px-4 pb-20">
-        {moments.length > 0 && (
-          <div className="mb-4">
-            <h3 className="mb-2 text-sm font-semibold text-muted-foreground">{t('connections.moments')}</h3>
-            <MomentStory moments={moments} />
-          </div>
-        )}
+        {/* Moments Section - Toujours visible pour afficher le bouton "Moi" */}
+        <div className="mb-4">
+          <h3 className="mb-2 text-sm font-semibold text-muted-foreground">{t('connections.moments')}</h3>
+          <MomentStory moments={moments} />
+        </div>
 
         {connections.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -667,6 +666,8 @@ function ProfileTab({ onOpenAdmin }: { onOpenAdmin: () => void }) {
   const canSeeVisitors = hasActiveFeature('see_visitors')
   const { setShowInsufficientBalance, spendCredits, fetchBalance, balance } = useConnectCoinStore()
   const ccLevel = useConnectCoinStore((s) => s.level)
+  const storeStreak = useConnectCoinStore((s) => s.streak)
+  const displayStreakDays = storeStreak?.currentStreak ?? currentUser?.streakDays ?? 0
   const [showVisitors, setShowVisitors] = useState(false)
   const [showPoster, setShowPoster] = useState(false)
   const [darkMode, setDarkMode] = useState(true)
@@ -692,6 +693,25 @@ function ProfileTab({ onOpenAdmin }: { onOpenAdmin: () => void }) {
   const age = currentUser.birthDate
     ? Math.floor((Date.now() - new Date(currentUser.birthDate).getTime()) / (365.25 * 24 * 60 * 60 * 1000))
     : null
+
+  // Calculate dynamic score to prevent showing 0% if backend calculation was missed
+  const dynamicScore = Math.min(100,
+    15 +
+    (currentUser.firstName ? 5 : 0) +
+    (currentUser.gender ? 5 : 0) +
+    (currentUser.birthDate ? 5 : 0) +
+    (currentUser.bio ? 10 : 0) +
+    (currentUser.interests?.length || 0) * 3 +
+    (currentUser.lookingFor ? 5 : 0) +
+    (currentUser.city ? 3 : 0) +
+    ((currentUser as any).jobTitle ? 3 : 0) +
+    ((currentUser as any).education ? 2 : 0) +
+    (currentUser.astrologicalSign ? 2 : 0) +
+    (currentUser.height ? 2 : 0) +
+    (currentUser.photos?.length || 0) * 10 +
+    (currentUser.prompts?.length || 0) * 5
+  )
+  const displayScore = Math.max(currentUser.profileScore || 0, dynamicScore)
 
   const [isEditing, setIsEditing] = useState(false)
 
@@ -782,7 +802,7 @@ function ProfileTab({ onOpenAdmin }: { onOpenAdmin: () => void }) {
               <span className="font-medium">{currentUser.phone}</span>
             </p>
           </div>
-          <ProfileScore score={currentUser.profileScore} size="md" />
+          <ProfileScore score={displayScore} size="md" />
         </motion.div>
 
         <div className="flex gap-2">
@@ -859,12 +879,12 @@ function ProfileTab({ onOpenAdmin }: { onOpenAdmin: () => void }) {
           <motion.div
             whileTap={{ scale: 0.95 }}
             className="flex flex-col items-center rounded-xl bg-card border p-3 cursor-pointer"
-            onClick={() => trigger('streak', { days: currentUser.streakDays })}
+            onClick={() => trigger('streak', { days: displayStreakDays })}
           >
-            <StreakCounter days={currentUser.streakDays} />
+            <StreakCounter days={displayStreakDays} />
           </motion.div>
           <div className="flex flex-col items-center rounded-xl bg-card border p-3">
-            <div className="text-lg font-bold text-primary">{currentUser.profileScore}%</div>
+            <div className="text-lg font-bold text-primary">{displayScore}%</div>
             <div className="text-[10px] text-muted-foreground">{t('profile.score')}</div>
           </div>
           <div className="flex flex-col items-center rounded-xl bg-card border p-3">
@@ -1636,6 +1656,7 @@ function AppContent() {
     setShowFilter,
     setFilters,
     setIsLoading,
+    setPremiumActions,
   } = useAppStore()
 
   const [showRequestDialog, setShowRequestDialog] = useState(false)
@@ -1644,6 +1665,7 @@ function AppContent() {
   const [showAdmin, setShowAdmin] = useState(false)
   const [showNotificationCenter, setShowNotificationCenter] = useState(false)
   const [isMounted, setIsMounted] = useState(false)
+  const [showExitConfirm, setShowExitConfirm] = useState(false)
 
   // ConnectCoin store
   const ccFetchBalance = useConnectCoinStore((s) => s.fetchBalance)
@@ -1789,7 +1811,8 @@ function AppContent() {
           connRes,
           msgRes,
           visitRes,
-          momentsRes
+          momentsRes,
+          premiumActionsRes
         ] = await Promise.all([
           fetch(`/api/profiles?userId=${currentUser.id}&limit=20`),
           fetch(`/api/requests?userId=${currentUser.id}&type=received`),
@@ -1797,7 +1820,8 @@ function AppContent() {
           fetch(`/api/connections?userId=${currentUser.id}`),
           fetch(`/api/messages?userId=${currentUser.id}`),
           fetch(`/api/profile/visits?userId=${currentUser.id}`),
-          fetch(`/api/moments?userId=${currentUser.id}`).catch(() => null)
+          fetch(`/api/moments?userId=${currentUser.id}`).catch(() => null),
+          fetch(`/api/premium-actions`).catch(() => null)
         ])
 
         // Parse JSON responses in parallel
@@ -1808,7 +1832,8 @@ function AppContent() {
           connData,
           msgData,
           visitData,
-          momentsData
+          momentsData,
+          premiumActionsData
         ] = await Promise.all([
           profilesRes.json(),
           receivedRes.json(),
@@ -1816,7 +1841,8 @@ function AppContent() {
           connRes.json(),
           msgRes.json(),
           visitRes.json(),
-          momentsRes ? momentsRes.json() : Promise.resolve(null)
+          momentsRes ? momentsRes.json() : Promise.resolve(null),
+          premiumActionsRes ? premiumActionsRes.json() : Promise.resolve(null)
         ])
 
         if (profilesData?.profiles) {
@@ -1832,6 +1858,7 @@ function AppContent() {
         if (msgData?.conversations) setConversations(msgData.conversations)
         if (visitData?.visits) setProfileVisits(visitData.visits)
         if (momentsData?.moments) setMoments(momentsData.moments)
+        if (premiumActionsData?.actions) setPremiumActions(premiumActionsData.actions)
 
       } catch (err) {
         console.error('Init error:', err)
@@ -1843,16 +1870,15 @@ function AppContent() {
   }, [isAuthenticated, currentUser, seeded])
 
   const handleLogin = async (user: UserProfile & { onboardingDone?: boolean }) => {
-    // Sync user to Prisma/SQLite for ConnectCoin
-    try {
-      await fetch('/api/auth/sync-user', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user }),
-      })
-    } catch (err) {
+    // Sync user to Prisma/SQLite for ConnectCoin in the background
+    fetch('/api/auth/sync-user', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user }),
+    }).catch(err => {
       console.error('Sync-user error:', err)
-    }
+    })
+    
     setUser(user)
     setAuthenticated(true)
     // Check if user has completed onboarding — new users go to onboarding, existing skip
@@ -1888,6 +1914,22 @@ function AppContent() {
     setAuthenticated(true)
   }
 
+  // Prevent accidental back button closure
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    
+    // Push dummy state
+    window.history.pushState({ isApp: true }, '')
+    
+    const handlePopState = (e: PopStateEvent) => {
+      // User pressed back, let's re-push to prevent exit and show dialog
+      window.history.pushState({ isApp: true }, '')
+      setShowExitConfirm(true)
+    }
+
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [])
 
   const handleRequestNumber = (profile: ProfileWithDetails) => {
     setRequestTarget(profile)
@@ -1999,6 +2041,39 @@ function AppContent() {
       <FoneLoveWallet />
       <SendFoneLoveDialog />
       <FoneLoveReceiveAnimation />
+
+      {/* Exit Confirmation Dialog */}
+      <Dialog open={showExitConfirm} onOpenChange={setShowExitConfirm}>
+        <DialogContent className="sm:max-w-md bg-card/95 backdrop-blur-xl border-primary/20 rounded-3xl p-6">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold flex items-center gap-2">
+              <span className="text-3xl">👋</span> Quitter FoneLove ?
+            </DialogTitle>
+            <DialogDescription className="text-base mt-2">
+              Tu es sûr de vouloir quitter l'application ?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-3 mt-6">
+            <Button
+              variant="outline"
+              className="flex-1 rounded-2xl h-12 font-bold hover:bg-muted"
+              onClick={() => setShowExitConfirm(false)}
+            >
+              Non, rester
+            </Button>
+            <Button
+              className="flex-1 rounded-2xl h-12 bg-red-500 hover:bg-red-600 text-white font-bold"
+              onClick={() => {
+                setShowExitConfirm(false)
+                // Go back twice to actually exit since we pushed a state
+                window.history.go(-2)
+              }}
+            >
+              Oui, quitter
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
