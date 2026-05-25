@@ -163,7 +163,7 @@ export default function InstallPrompt() {
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, scale: 0.9 }}
           onClick={handleInstall}
-          className="fixed top-[env(safe-area-inset-top,1rem)] left-1/2 -translate-x-1/2 mt-4 z-[100] flex items-center gap-3 rounded-full bg-black/80 backdrop-blur-xl border border-white/10 py-1.5 px-3 pr-1.5 shadow-2xl cursor-pointer hover:bg-black transition-all active:scale-95 group"
+          className="fixed top-[calc(env(safe-area-inset-top,0px)+4.5rem)] left-1/2 -translate-x-1/2 z-[100] flex items-center gap-3 rounded-full bg-black/80 backdrop-blur-xl border border-white/10 py-1.5 px-3 pr-1.5 shadow-2xl cursor-pointer hover:bg-black transition-all active:scale-95 group"
         >
           <img 
             src="/logo.webp" 
