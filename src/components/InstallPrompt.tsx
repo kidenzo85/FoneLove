@@ -18,6 +18,7 @@ interface BeforeInstallPromptEvent extends Event {
 export default function InstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
   const [showPrompt, setShowPrompt] = useState(false)
+  const [isMinimized, setIsMinimized] = useState(false)
   const [isIOS, setIsIOS] = useState(false)
   const [isStandalone, setIsStandalone] = useState(false)
 
@@ -62,22 +63,28 @@ export default function InstallPrompt() {
       const { outcome } = await deferredPrompt.userChoice
       if (outcome === "accepted") {
         setShowPrompt(false)
+        setIsMinimized(false)
       }
       setDeferredPrompt(null)
+    } else if (isIOS) {
+      // Sur iOS on doit réafficher le grand modal pour montrer les instructions
+      setIsMinimized(false)
     }
   }
 
-  const handleDismiss = () => {
-    setShowPrompt(false)
+  const handleDismiss = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation()
+    setIsMinimized(true)
   }
 
   // Ne rien afficher si déjà installée, ou si on n'a ni prompt natif ni iOS
   if (isStandalone || (!deferredPrompt && !isIOS)) return null
 
   return (
-    <AnimatePresence>
-      {showPrompt && (
+    <AnimatePresence mode="wait">
+      {showPrompt && !isMinimized && (
         <motion.div
+          key="full-prompt"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -98,11 +105,12 @@ export default function InstallPrompt() {
 
             <div className="flex flex-col items-center text-center">
               {/* Logo */}
-              <div className="mb-6 flex justify-center">
+              <div className="mb-6 flex justify-center relative">
+                <div className="absolute -inset-4 rounded-full bg-primary/20 blur-xl animate-pulse"></div>
                 <img 
                   src="/logo.webp" 
                   alt="Fonelove" 
-                  className="h-16 w-16 rounded-[20px] object-cover shadow-xl shadow-pink-500/30"
+                  className="h-16 w-16 rounded-[20px] object-cover shadow-xl shadow-pink-500/30 relative z-10"
                 />
               </div>
 
@@ -141,10 +149,31 @@ export default function InstallPrompt() {
                 onClick={handleDismiss}
                 className="mt-4 text-xs font-semibold text-white/40 hover:text-white/60"
               >
-                Continuer sur le navigateur
+                Plus tard
               </button>
             </div>
           </motion.div>
+        </motion.div>
+      )}
+
+      {isMinimized && (
+        <motion.div
+          key="minimized-prompt"
+          initial={{ opacity: 0, y: -20, scale: 0.9 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.9 }}
+          onClick={handleInstall}
+          className="fixed top-[env(safe-area-inset-top,1rem)] left-1/2 -translate-x-1/2 mt-4 z-[100] flex items-center gap-3 rounded-full bg-black/80 backdrop-blur-xl border border-white/10 py-1.5 px-3 pr-1.5 shadow-2xl cursor-pointer hover:bg-black transition-all active:scale-95 group"
+        >
+          <img 
+            src="/logo.webp" 
+            alt="Fonelove" 
+            className="h-7 w-7 rounded-lg object-cover shadow-sm group-hover:shadow-primary/50 transition-shadow" 
+          />
+          <span className="text-sm font-bold text-white/90 group-hover:text-white">Installer</span>
+          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/90 text-white ml-1 group-hover:bg-primary transition-colors">
+            <Download className="size-3.5" />
+          </div>
         </motion.div>
       )}
     </AnimatePresence>

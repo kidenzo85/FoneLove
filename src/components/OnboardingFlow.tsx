@@ -81,17 +81,45 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
   // Pre-fill form with existing user data if available
   useEffect(() => {
     if (currentUser && !formData.firstName && !formData.gender) {
-      setFormData(prev => ({
-        ...prev,
-        firstName: currentUser.firstName || prev.firstName,
-        gender: currentUser.gender || prev.gender,
-        birthDate: currentUser.birthDate || prev.birthDate,
-        bio: currentUser.bio || prev.bio,
-        photos: currentUser.photos?.map(p => p.url) || prev.photos,
-        selectedInterests: currentUser.interests || prev.selectedInterests,
-      }))
+      const initialFormData = {
+        ...formData,
+        firstName: currentUser.firstName || formData.firstName,
+        gender: currentUser.gender || formData.gender,
+        birthDate: currentUser.birthDate || formData.birthDate,
+        bio: currentUser.bio || formData.bio,
+        photos: currentUser.photos?.map(p => p.url) || formData.photos,
+        selectedInterests: currentUser.interests || formData.selectedInterests,
+        lookingForGender: currentUser.lookingForGender || formData.lookingForGender,
+        lookingFor: currentUser.lookingFor || formData.lookingFor,
+        city: currentUser.city || formData.city,
+      };
+
+      setFormData(initialFormData)
+
+      // Calcul de la première étape non complétée
+      const calculateUncompletedStep = (data: typeof formData) => {
+        if (!(data.firstName && data.gender)) return 0;
+        if (!data.lookingForGender) return 1;
+        if (!data.lookingFor) return 2;
+        if (!data.city) return 3;
+        if (data.photos.length < 2) return 4;
+        // Step 5 est optionnel (bio & prompts)
+        if (data.selectedInterests.length < 3) return 6;
+        if (config.requirePhoneVerification) {
+          if (data.otp !== '1234') return 7;
+        } else {
+          if (data.phoneLocal.replace(/\s/g, '').length < 6) return 7;
+        }
+        return 7; // Dernière étape
+      };
+
+      const missingStep = calculateUncompletedStep(initialFormData);
+      if (missingStep > step) {
+        setStep(missingStep);
+        setOnboardingStep(missingStep);
+      }
     }
-  }, [currentUser])
+  }, [currentUser, config.requirePhoneVerification])
 
   // Détection automatique du pays de l'utilisateur
   useEffect(() => {

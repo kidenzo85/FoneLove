@@ -1714,8 +1714,6 @@ export default function TikTokViewer({
         )}
       </AnimatePresence>
 
-      <StoryProgressBar current={virtualIndex} total={profiles.length + passedProfiles.length} photoProgress={photoProgress} />
-      <ProfileCounter current={virtualIndex} total={profiles.length + passedProfiles.length} />
       <PhotoCounterBadge current={currentPhotoIndex} total={currentPhotos.length} />
       <TransitionFlash active={transitionFlash} />
       <ScrollUpIndicator visible={showScrollHint} />
