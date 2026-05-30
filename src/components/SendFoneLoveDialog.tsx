@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { useFoneLoveStore } from '@/lib/fonelove-store'
 import { useAppStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
+import { FoneLoveIcon } from '@/components/FoneLoveIcon'
 
 const QUICK_AMOUNTS = [1, 5, 10, 25, 50]
 
@@ -63,7 +64,9 @@ export default function SendFoneLoveDialog() {
           <AnimatePresence mode="wait">
             {success ? (
               <motion.div key="ok" initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center py-6">
-                <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring' }} className="mb-4 text-7xl animate-bounce-subtle">💝</motion.div>
+                <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring' }} className="mb-4">
+                  <FoneLoveIcon className="size-16 animate-bounce-subtle" />
+                </motion.div>
                 <h3 className="text-xl font-bold text-fonelove mb-2">FoneLove envoyé !</h3>
                 <p className="text-sm text-muted-foreground text-center">
                   Tu as offert <span className="font-bold text-pink-500">{amount} FoneLove{amount > 1 ? 's' : ''}</span> à {target.firstName}
@@ -79,7 +82,7 @@ export default function SendFoneLoveDialog() {
                     <motion.div className="absolute -bottom-1 -right-1 h-6 w-6 rounded-full flex items-center justify-center text-xs shadow-md"
                       style={{ background: 'linear-gradient(135deg, #ec4899, #f59e0b)' }}
                       animate={{ scale: [1, 1.15, 1] }} transition={{ repeat: Infinity, duration: 2 }}>
-                      🎁
+                      <Gift className="size-3 text-white" />
                     </motion.div>
                   </div>
                   <div className="flex-1 min-w-0">
@@ -117,7 +120,7 @@ export default function SendFoneLoveDialog() {
                       <div className="flex items-center gap-2">
                         <motion.span key={amount} initial={{ y: 10, opacity: 0, scale: 0.9 }} animate={{ y: 0, opacity: 1, scale: 1 }}
                           className="text-4xl font-black text-fonelove tabular-nums leading-none">{amount}</motion.span>
-                        <span className="text-2xl animate-bounce-subtle">💝</span>
+                        <FoneLoveIcon className="size-8" />
                       </div>
                     </div>
                     <motion.button whileTap={{ scale: 0.8 }} onClick={() => setAmount(Math.min(999, amount + 1))}
@@ -138,8 +141,8 @@ export default function SendFoneLoveDialog() {
                 <div className={cn('rounded-xl border p-3 mb-3 sm:mb-4 flex items-center justify-between shrink-0',
                   insufficient ? 'border-red-500/20 bg-red-500/5' : 'border-border/20 bg-muted/10')}>
                   <div className="flex items-center gap-2">
-                    <span className="text-sm">💝</span>
-                    <span className="text-xs text-muted-foreground">Solde FoneLove :</span>
+                    <FoneLoveIcon className="size-4" glow={false} />
+                    <span className="text-xs text-muted-foreground">Solde :</span>
                     <span className={cn('text-sm font-bold', insufficient ? 'text-red-400' : 'text-pink-500')}>{sendBalance}</span>
                   </div>
                   {insufficient && (
@@ -165,7 +168,7 @@ export default function SendFoneLoveDialog() {
                       <span className="flex items-center justify-center gap-2 w-full px-2 min-w-0">
                         <Send className="size-4 shrink-0" /> 
                         <span className="truncate min-w-0">Offrir {amount} FoneLove{amount > 1 ? 's' : ''}</span> 
-                        <span className="shrink-0">💝</span>
+                        <FoneLoveIcon className="size-4 shrink-0" glow={false} />
                       </span>
                     )}
                   </motion.button>

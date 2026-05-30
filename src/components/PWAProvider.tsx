@@ -343,16 +343,9 @@ export function registerServiceWorker() {
 
   const register = async () => {
     if (process.env.NODE_ENV === 'development') {
-      try {
-        const registrations = await navigator.serviceWorker.getRegistrations()
-        for (const registration of registrations) {
-          await registration.unregister()
-        }
-        console.log('[PWA] Service Workers unregistered in development mode to avoid InvalidStateError')
-      } catch (error) {
-        console.error('[PWA] Failed to unregister Service Worker:', error)
-      }
-      return
+      console.log('[PWA] Service Worker enabled in development mode to allow Push Notification testing.')
+      // Note: We don't return here so the SW gets registered.
+      // Caching might need to be manually cleared if you have stale assets.
     }
 
     try {

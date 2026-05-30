@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Gift, X, Share2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useT } from '@/lib/i18n/context'
+import { FoneLoveIcon } from '@/components/FoneLoveIcon'
 
 const SHARE_URL = 'https://fonelove.com'
 
@@ -119,9 +120,9 @@ export default function SharedGiftOverlay({ amount, giftAmount, onClose }: Share
               <motion.div
                 animate={{ scale: [1, 1.2, 1], rotate: [0, 10, -10, 0] }}
                 transition={{ repeat: Infinity, duration: 2 }}
-                className="text-5xl"
+                className="mb-2"
               >
-                💖
+                <FoneLoveIcon className="size-16 drop-shadow-xl" glow={true} />
               </motion.div>
               <p className="text-lg font-bold text-white text-center">{t('gift.sent')}</p>
             </motion.div>
@@ -180,9 +181,9 @@ export default function SharedGiftOverlay({ amount, giftAmount, onClose }: Share
                   rotate: [0, 3, -3, 0],
                 }}
                 transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-                className="text-6xl"
+                className="mb-2"
               >
-                🎁
+                <FoneLoveIcon className="size-16" glow={true} />
               </motion.div>
 
               <div className="text-center px-2">

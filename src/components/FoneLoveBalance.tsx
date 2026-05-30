@@ -6,6 +6,7 @@ import { Gift } from 'lucide-react'
 import { useFoneLoveStore } from '@/lib/fonelove-store'
 import { useAppStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
+import { FoneLoveIcon } from '@/components/FoneLoveIcon'
 
 import { useShallow } from 'zustand/react/shallow'
 
@@ -58,7 +59,7 @@ export default function FoneLoveBalance({ compact = false }: FoneLoveBalanceProp
         transition={{ duration: 0.4 }}
         className="relative"
       >
-        <Gift className={cn(compact ? 'size-3.5' : 'size-4', 'text-pink-400')} />
+        <FoneLoveIcon className={cn(compact ? 'size-4' : 'size-5')} glow={false} />
       </motion.div>
 
       <span className={cn(

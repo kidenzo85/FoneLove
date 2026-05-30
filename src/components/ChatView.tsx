@@ -15,6 +15,7 @@ import { playSound } from '@/lib/sounds'
 import FoneLoveButton from '@/components/FoneLoveButton'
 import DatingEmojiPicker from '@/components/DatingEmojiPicker'
 import { optimizeImage } from '@/lib/image-optimizer'
+import { FoneLoveIcon } from '@/components/FoneLoveIcon'
 
 interface ChatViewProps {
   conversation: ConversationItem
@@ -608,9 +609,9 @@ export default function ChatView({ conversation, onBack }: ChatViewProps) {
                 target={{ userId: conversation.otherUser.id, firstName: conversation.otherUser.firstName, photo: conversation.otherUser.photos?.[0]?.url }}
                 variant="chat"
               />
-              <div className="text-[11px] text-muted-foreground italic flex items-start gap-1 flex-1 min-w-0 select-none animate-pulse-subtle ml-1 leading-tight whitespace-normal">
+              <div className="text-[11px] text-muted-foreground italic flex items-center gap-1 flex-1 min-w-0 select-none animate-pulse-subtle ml-1 leading-tight whitespace-normal">
                 <Sparkles className="size-3 text-pink-400 shrink-0 mt-[1px]" />
-                <span className="break-words">Envoyer un FoneLove pour lui faire plaisir ! 💝</span>
+                <span className="break-words flex items-center">Envoyer un FoneLove pour lui faire plaisir ! <FoneLoveIcon className="size-3 ml-1" glow={false} /></span>
               </div>
             </motion.div>
           )}

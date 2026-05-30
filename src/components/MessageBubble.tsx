@@ -5,6 +5,7 @@ import { Phone, Mic, Check, CheckCheck, Gift, Sparkles, Clock, Play, Pause } fro
 import { useT } from '@/lib/i18n/context'
 import { useState, useEffect, useRef } from 'react'
 import { usePremiumFeatures } from '@/lib/premium-features-store'
+import { FoneLoveIcon } from '@/components/FoneLoveIcon'
 
 interface MessageBubbleProps {
   message: MessageItem
@@ -157,9 +158,9 @@ export default function MessageBubble({ message, isOwn, showExpiry, onSayThanks 
         ) : isGift && isOwn ? (
           <div className="py-1 min-w-[140px]">
             <div className="flex items-center gap-2 mb-2 text-white">
-              <Gift className="size-4 text-pink-200" />
+              <FoneLoveIcon className="size-4" glow={false} />
               <span className="text-xs font-black uppercase tracking-wider">
-                🎁 Cadeau Envoyé ({parsedGift.amount} 💖)
+                Cadeau Envoyé ({parsedGift.amount})
               </span>
             </div>
             {parsedGift.message && (
@@ -186,7 +187,7 @@ export default function MessageBubble({ message, isOwn, showExpiry, onSayThanks 
                     animate={{ rotate: [-5, 5, -5] }}
                     transition={{ repeat: Infinity, duration: 2 }}
                   >
-                    <Gift className="size-12 text-primary" />
+                    <FoneLoveIcon className="size-16 drop-shadow-xl" glow={true} />
                   </motion.div>
                   <p className="text-xs font-bold uppercase tracking-wider opacity-80">
                     {t('chat.giftTitle')}
@@ -203,7 +204,7 @@ export default function MessageBubble({ message, isOwn, showExpiry, onSayThanks 
                   className="py-1"
                 >
                   <div className="flex items-center gap-2 mb-2 text-primary">
-                    <Sparkles className="size-4 animate-sparkle" />
+                    <FoneLoveIcon className="size-5" />
                     <span className="text-sm font-black uppercase tracking-wider">{parsedGift.amount} FoneLove{parsedGift.amount > 1 ? 's' : ''}</span>
                   </div>
                   {parsedGift.message && (

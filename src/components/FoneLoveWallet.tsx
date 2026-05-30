@@ -9,13 +9,9 @@ import { useFoneLoveStore } from '@/lib/fonelove-store'
 import { useAppStore } from '@/lib/store'
 import { useCurrencyStore } from '@/lib/currency-store'
 import { cn } from '@/lib/utils'
+import { FoneLoveIcon } from '@/components/FoneLoveIcon'
 
-const RECHARGE_PACKS = [
-  { amount: 5, label: '5 FoneLove', icon: '🌹', gradient: 'from-pink-500/15 to-rose-500/15' },
-  { amount: 10, label: '10 FoneLove', icon: '💝', gradient: 'from-rose-500/15 to-pink-500/15' },
-  { amount: 20, label: '20 FoneLove', icon: '💘', gradient: 'from-rose-500/15 to-pink-500/15', popular: true },
-  { amount: 50, label: '50 FoneLove', icon: '💍', gradient: 'from-amber-500/15 to-yellow-500/15', best: true },
-]
+const QUICK_AMOUNTS = [1, 5, 10, 20, 50]
 
 export default function FoneLoveWallet() {
   const { showWallet, setShowWallet, sendBalance, totalSent, totalReceived, totalWithdrawn,
@@ -24,23 +20,12 @@ export default function FoneLoveWallet() {
   const formatLocalPrice = useCurrencyStore((s) => s.formatLocalPrice)
   const rawPacks = useCurrencyStore((s) => s.rawPacks)
 
-  const dynamicPacks = rawPacks?.filter(p => p.currency === 'FL') || []
-  const packsToShow = dynamicPacks.length > 0 
-    ? dynamicPacks.map(p => ({
-        amount: p.amount,
-        label: p.name,
-        icon: p.icon || '💝',
-        gradient: 'from-pink-500/15 to-rose-500/15',
-        priceFormatted: p.priceXaf ? `${p.priceXaf} FCFA` : formatLocalPrice(p.amount * (config?.unitPriceEur ?? 0.50)),
-        best: false,
-        popular: false
-      }))
-    : RECHARGE_PACKS
 
   const [tab, setTab] = useState<'balance' | 'recharge' | 'withdraw' | 'history'>('balance')
   const [processing, setProcessing] = useState(false)
   const [success, setSuccess] = useState<string | null>(null)
   const [withdrawAmount, setWithdrawAmount] = useState(10)
+  const [rechargeAmount, setRechargeAmount] = useState(10)
   const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
@@ -93,11 +78,11 @@ export default function FoneLoveWallet() {
           <div className="flex items-center justify-between px-4 py-3">
             <div className="flex items-center gap-2.5">
               <div className="flex h-9 w-9 items-center justify-center rounded-xl" style={{ background: 'linear-gradient(135deg, rgba(236,72,153,0.2), rgba(245,158,11,0.2))' }}>
-                <Gift className="size-5 text-pink-400" />
+                <FoneLoveIcon className="size-5" glow={false} />
               </div>
               <div>
                 <h2 className="text-base font-bold">Mon Wallet FoneLove</h2>
-                <p className="text-[10px] text-muted-foreground">Offre, reçois, retire 💝</p>
+                <p className="text-[10px] text-muted-foreground">Offre, reçois, retire ✨</p>
               </div>
             </div>
             <Button variant="ghost" size="icon" className="size-8 rounded-full" onClick={() => setShowWallet(false)}>
@@ -142,8 +127,10 @@ export default function FoneLoveWallet() {
                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
                   className="rounded-2xl border border-pink-500/20 p-6 flex flex-col items-center justify-center text-center" style={{ background: 'linear-gradient(135deg, rgba(236,72,153,0.08), rgba(244,63,94,0.08))' }}>
                   <p className="text-xs text-muted-foreground uppercase font-bold mb-2">Mon Solde</p>
-                  <p className="text-5xl font-black text-pink-500">{sendBalance}</p>
-                  <p className="text-xs text-pink-400/60 mt-1">FoneLove 💝</p>
+                  <p className="text-5xl font-black text-pink-500 flex items-center justify-center gap-2">
+                    {sendBalance} <FoneLoveIcon className="size-8" />
+                  </p>
+                  <p className="text-xs text-pink-400/60 mt-1">FoneLove disponibles</p>
                 </motion.div>
               </div>
 
@@ -241,7 +228,7 @@ export default function FoneLoveWallet() {
 
           {tab === 'recharge' && (
             <div className="space-y-4 py-4">
-              {/* Payment info */}
+              {/* Info payment */}
               <div className="rounded-xl border border-pink-500/20 bg-pink-500/5 p-3 flex items-center gap-2.5">
                 <span className="text-xl">💳</span>
                 <div>
@@ -250,36 +237,59 @@ export default function FoneLoveWallet() {
                 </div>
               </div>
 
-              {/* Packs */}
-              <div className="space-y-2">
-                {packsToShow.map((pack) => (
-                  <motion.button key={pack.amount} whileTap={{ scale: 0.97 }}
-                    onClick={() => handleRecharge(pack.amount)}
-                    disabled={processing}
-                    className={cn('relative w-full rounded-2xl border p-4 text-left transition-all overflow-hidden bg-gradient-to-br',
-                      pack.gradient, pack.best ? 'border-amber-500/30' : pack.popular ? 'border-pink-500/30' : 'border-border/20')}>
-                    {pack.best && <span className="absolute top-2 right-2 text-[9px] font-bold bg-amber-500 text-black px-1.5 py-0.5 rounded-full">Meilleur</span>}
-                    {pack.popular && <span className="absolute top-2 right-2 text-[9px] font-bold bg-pink-500 text-white px-1.5 py-0.5 rounded-full">Populaire</span>}
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl">{pack.icon}</span>
-                      <div className="flex-1">
-                        <p className="font-bold text-sm">{pack.label}</p>
-                        <p className="text-[10px] text-muted-foreground">
-                          {pack.priceFormatted || formatLocalPrice(pack.amount * (config?.unitPriceEur ?? 0.50))}
-                        </p>
-                      </div>
-                    </div>
+              {/* Quantity Selector */}
+              <div className="flex flex-col items-center bg-muted/20 rounded-2xl p-4 border border-border/10 shadow-inner">
+                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-4 flex items-center gap-1.5">
+                  <Sparkles className="size-3.5 text-pink-400" /> Combien en veux-tu ?
+                </p>
+                
+                {/* Quick amounts */}
+                <div className="grid grid-cols-5 gap-2 w-full mb-5">
+                  {QUICK_AMOUNTS.map((q) => (
+                    <motion.button key={q} whileTap={{ scale: 0.95 }} onClick={() => setRechargeAmount(q)}
+                      className={cn('py-2 rounded-xl text-xs font-bold transition-all border text-center flex items-center justify-center',
+                        rechargeAmount === q ? 'bg-gradient-to-r from-pink-500/20 to-amber-500/20 border-pink-500/30 text-pink-500'
+                          : 'bg-muted/30 border-transparent text-muted-foreground')}>
+                      {q}
+                    </motion.button>
+                  ))}
+                </div>
+
+                <div className="flex items-center justify-center gap-6 w-full mb-2">
+                  <motion.button whileTap={{ scale: 0.8 }} onClick={() => setRechargeAmount(Math.max(1, rechargeAmount - 1))}
+                    disabled={rechargeAmount <= 1} className="h-10 w-10 rounded-xl bg-muted/40 hover:bg-muted/60 flex items-center justify-center disabled:opacity-20 transition-colors">
+                    <Minus className="size-5 text-foreground" />
                   </motion.button>
-                ))}
+                  
+                  <div className="flex items-center gap-2">
+                    <motion.span key={rechargeAmount} initial={{ y: 10, opacity: 0, scale: 0.9 }} animate={{ y: 0, opacity: 1, scale: 1 }}
+                      className="text-4xl font-black text-pink-500 tabular-nums leading-none">{rechargeAmount}</motion.span>
+                    <FoneLoveIcon className="size-8" />
+                  </div>
+
+                  <motion.button whileTap={{ scale: 0.8 }} onClick={() => setRechargeAmount(Math.min(999, rechargeAmount + 1))}
+                    className="h-10 w-10 rounded-xl bg-muted/40 hover:bg-muted/60 flex items-center justify-center transition-colors">
+                    <Plus className="size-5 text-foreground" />
+                  </motion.button>
+                </div>
               </div>
+
+              {/* Total Price and Buy Button */}
+              <Button className="w-full h-14 rounded-2xl text-base font-bold text-white border-0 shadow-xl"
+                style={{ background: 'linear-gradient(135deg, #ec4899, #f43f5e, #f59e0b)' }}
+                onClick={() => handleRecharge(rechargeAmount)} disabled={processing}>
+                {processing ? 'Redirection...' : `Acheter pour ${formatLocalPrice(rechargeAmount * (config?.unitPriceEur ?? 0.50))}`}
+              </Button>
             </div>
           )}
 
           {tab === 'withdraw' && (
             <div className="space-y-4 py-4">
               <div className="rounded-2xl border border-amber-500/20 p-4 text-center" style={{ background: 'linear-gradient(135deg, rgba(245,158,11,0.08), rgba(234,179,8,0.08))' }}>
-                <p className="text-xs text-muted-foreground mb-1">FoneLove disponibles pour le retrait</p>
-                <p className="text-4xl font-black text-amber-500">{sendBalance}</p>
+                <p className="text-xs text-muted-foreground mb-1">FoneLoves disponibles pour le retrait</p>
+                <p className="text-4xl font-black text-amber-500 flex items-center justify-center gap-2">
+                  {sendBalance} <FoneLoveIcon className="size-8" glow={false} />
+                </p>
               </div>
 
               {/* Amount selector */}
@@ -288,9 +298,9 @@ export default function FoneLoveWallet() {
                 <div className="flex items-center gap-3 bg-muted/20 rounded-2xl p-3 border border-border/20">
                   <button onClick={() => setWithdrawAmount(Math.max(config?.minWithdrawAmount ?? 10, withdrawAmount - 5))}
                     className="h-10 w-10 rounded-xl bg-muted/50 flex items-center justify-center"><Minus className="size-5" /></button>
-                  <div className="flex-1 text-center">
+                  <div className="flex-1 flex items-center justify-center gap-1">
                     <span className="text-3xl font-black text-amber-500">{withdrawAmount}</span>
-                    <span className="text-sm text-muted-foreground ml-1">FL</span>
+                    <FoneLoveIcon className="size-6" glow={false} />
                   </div>
                   <button onClick={() => setWithdrawAmount(Math.min(sendBalance, withdrawAmount + 5))}
                     className="h-10 w-10 rounded-xl bg-muted/50 flex items-center justify-center"><Plus className="size-5" /></button>

@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { Gift } from 'lucide-react'
 import { useFoneLoveStore, type SendDialogTarget } from '@/lib/fonelove-store'
 import { cn } from '@/lib/utils'
+import { FoneLoveIcon } from '@/components/FoneLoveIcon'
 
 interface FoneLoveButtonProps {
   target: SendDialogTarget
@@ -87,7 +88,9 @@ export default function FoneLoveButton({ target, variant = 'inline', className, 
           transition={{ duration: 4, repeat: Infinity, ease: 'linear', repeatDelay: 2 }}
         />
         <Gift className="size-3.5 relative z-10 animate-bounce-subtle" />
-        <span className="relative z-10">{label || 'Offrir un FoneLove 💝'}</span>
+        <span className="relative z-10 flex items-center justify-center gap-1">
+          {label || 'Offrir un FoneLove'} <FoneLoveIcon className="size-4" glow={false} />
+        </span>
       </motion.button>
     )
   }
@@ -140,7 +143,9 @@ export default function FoneLoveButton({ target, variant = 'inline', className, 
         transition={{ duration: 3, repeat: Infinity, ease: 'linear', repeatDelay: 2 }}
       />
       <Gift className="size-4.5 relative z-10 animate-bounce-subtle" />
-      <span className="relative z-10">{label || 'Offrir un FoneLove 💝'}</span>
+      <span className="relative z-10 flex items-center justify-center gap-1">
+        {label || 'Offrir un FoneLove'} <FoneLoveIcon className="size-4" glow={false} />
+      </span>
     </motion.button>
   )
 }
