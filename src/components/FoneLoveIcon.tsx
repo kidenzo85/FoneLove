@@ -7,18 +7,18 @@ interface FoneLoveIconProps extends React.SVGProps<SVGSVGElement> {
   glow?: boolean
 }
 
-export function FoneLoveIcon({ className, glow = true, ...props }: FoneLoveIconProps) {
+export function FoneLoveIcon({ className, glow = false, ...props }: FoneLoveIconProps) {
   return (
     <div className={cn('relative inline-flex items-center justify-center shrink-0', className)}>
-      {/* Optional Glow Effect */}
+      {/* Optional external glow effect if requested by props */}
       {glow && (
         <div 
-          className="absolute inset-0 rounded-full blur-md opacity-40 mix-blend-screen animate-pulse" 
-          style={{ background: 'linear-gradient(135deg, #ec4899, #f59e0b)' }} 
+          className="absolute inset-0 rounded-full blur-md opacity-40 animate-pulse" 
+          style={{ background: 'linear-gradient(135deg, #f43f5e, #f97316)' }} 
         />
       )}
       
-      {/* 3D Coin base */}
+      {/* 3D Premium Vector Coin: 4. Éclat Sunset */}
       <svg
         viewBox="0 0 100 100"
         fill="none"
@@ -27,43 +27,68 @@ export function FoneLoveIcon({ className, glow = true, ...props }: FoneLoveIconP
         {...props}
       >
         <defs>
-          <linearGradient id="fonelove-bg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#ec4899" />
-            <stop offset="100%" stopColor="#f59e0b" />
-          </linearGradient>
-          <linearGradient id="fonelove-border-grad" x1="0%" y1="100%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#f43f5e" />
+          <linearGradient id="fl-sunset-bright" x1="0%" y1="100%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#f472b6" />
+            <stop offset="50%" stopColor="#fb7185" />
             <stop offset="100%" stopColor="#fbbf24" />
           </linearGradient>
-          <filter id="inner-glow">
-            <feGaussianBlur in="SourceAlpha" stdDeviation="2" result="blur" />
-            <feFlood floodColor="#ffffff" floodOpacity="0.4" result="glowColor" />
-            <feComposite in="glowColor" in2="blur" operator="in" result="glow" />
-            <feMerge>
-              <feMergeNode in="glow" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
+          
+          <linearGradient id="fl-sunset-reverse" x1="100%" y1="100%" x2="0%" y2="0%">
+            <stop offset="0%" stopColor="#db2777" />
+            <stop offset="100%" stopColor="#f59e0b" />
+          </linearGradient>
+
+          <linearGradient id="fl-white" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#ffffff" />
+            <stop offset="100%" stopColor="#e2e8f0" />
+          </linearGradient>
+
+          {/* Shadows */}
+          <filter id="fl-shadow" x="-20%" y="-20%" width="140%" height="140%">
+            <feDropShadow dx="0" dy="4" stdDeviation="4" floodColor="#000" floodOpacity="0.15" />
+          </filter>
+          
+          <filter id="fl-inner-shadow">
+            <feOffset dx="0" dy="2"/>
+            <feGaussianBlur stdDeviation="2" result="offset-blur"/>
+            <feComposite operator="out" in="SourceGraphic" in2="offset-blur" result="inverse"/>
+            <feFlood floodColor="black" floodOpacity="0.3" result="color"/>
+            <feComposite operator="in" in="color" in2="inverse" result="shadow"/>
+            <feComposite operator="over" in="shadow" in2="SourceGraphic"/>
           </filter>
         </defs>
 
-        {/* Outer Ring (Gold/Pink shine) */}
-        <circle cx="50" cy="50" r="48" fill="url(#fonelove-border-grad)" />
-        
-        {/* Inner Coin */}
-        <circle cx="50" cy="50" r="42" fill="url(#fonelove-bg-grad)" filter="url(#inner-glow)" />
-        
-        {/* Shine highlight */}
-        <path d="M 15 50 A 35 35 0 0 1 85 50" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" opacity="0.3" />
+        {/* Outer Ring (Solid) */}
+        <circle cx="50" cy="50" r="48" fill="url(#fl-sunset-bright)" filter="url(#fl-shadow)" />
 
-        {/* Heart/Handset combined symbol from Logo */}
-        <g transform="translate(18, 18) scale(0.65)" fill="white">
-          <path d="M50 0C22.4 0 0 22.4 0 50C0 77.6 22.4 100 50 100H80C91 100 100 91 100 80V50C100 22.4 77.6 0 50 0ZM33 28C38.5 28 43 32.5 43 38C43 43.5 38.5 48 33 48C27.5 48 23 43.5 23 38C23 32.5 27.5 28 33 28ZM70 70L50 50L30 70C25 65 20 55 20 45C20 30 30 20 45 20C55 20 65 25 70 30L60 40L70 50L80 40C85 45 90 55 90 65C90 75 80 85 70 70Z" opacity="0.9" />
-          
-          <path d="M78 30C72 20 62 14 50 14C38 14 28 20 22 30L16 24C24 12 36 4 50 4C64 4 76 12 84 24L78 30Z" opacity="0.7"/>
+        {/* Inner Core */}
+        <circle cx="50" cy="50" r="42" fill="url(#fl-sunset-reverse)" filter="url(#fl-inner-shadow)" />
+
+        {/* Core Details: Rays */}
+        <g opacity="0.2" stroke="#fff" strokeWidth="0.5">
+          {[...Array(12)].map((_, i) => (
+            <line 
+              key={i} 
+              x1="50" 
+              y1="50" 
+              x2={(50 + 40 * Math.cos(i * Math.PI / 6)).toFixed(3)} 
+              y2={(50 + 40 * Math.sin(i * Math.PI / 6)).toFixed(3)} 
+            />
+          ))}
         </g>
+
+        {/* Glossy overlay on core */}
+        <path d="M 12 50 A 38 38 0 0 1 88 50" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" opacity="0.5" />
+
+        {/* Central Heart */}
+        <path 
+          d="M50 74 C 50 74, 26 54, 26 36 C 26 25, 35 18, 44 18 C 50 18, 50 24, 50 24 C 50 24, 50 18, 56 18 C 65 18, 74 25, 74 36 C 74 54, 50 74, 50 74 Z" 
+          fill="url(#fl-white)" 
+          filter="url(#fl-shadow)" 
+        />
         
-        {/* Central Heart (Derived explicitly) */}
-        <path d="M50 72L42 64C28 51 20 44 20 34C20 25 27 18 36 18C41 18 46 20 50 24C54 20 59 18 64 18C73 18 80 25 80 34C80 44 72 51 58 64L50 72Z" fill="white" className="drop-shadow-sm" />
+        {/* Heart inner reflection */}
+        <path d="M 32 32 Q 40 24 46 26" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" opacity="0.7" />
       </svg>
     </div>
   )
