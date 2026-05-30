@@ -11,6 +11,7 @@ import { type ConversationItem, type MessageItem, useAppStore } from '@/lib/stor
 import { useFeedback } from '@/components/FeedbackSystem'
 import { cn } from '@/lib/utils'
 import { useT } from '@/lib/i18n/context'
+import { playSound } from '@/lib/sounds'
 import FoneLoveButton from '@/components/FoneLoveButton'
 import DatingEmojiPicker from '@/components/DatingEmojiPicker'
 import { optimizeImage } from '@/lib/image-optimizer'
@@ -32,6 +33,7 @@ export default function ChatView({ conversation, onBack }: ChatViewProps) {
   const { currentUser } = useAppStore()
   const { trigger } = useFeedback()
   const { t, localeStr } = useT()
+  const setActiveChatUserId = useAppStore(state => state.setActiveChatUserId)
   const [newMessage, setNewMessage] = useState('')
   const [messages, setMessages] = useState(conversation.messages || [])
   const [showIceBreakers, setShowIceBreakers] = useState(true)
@@ -56,6 +58,11 @@ export default function ChatView({ conversation, onBack }: ChatViewProps) {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  useEffect(() => {
+    if (otherUser?.id) setActiveChatUserId(otherUser.id)
+    return () => setActiveChatUserId(null)
+  }, [otherUser?.id, setActiveChatUserId])
 
   // Polling ultra-optimisé (Delta Sync) toutes les 2.5 secondes (plus réactif et consomme 95% de moins !)
   useEffect(() => {
@@ -87,11 +94,7 @@ export default function ChatView({ conversation, onBack }: ChatViewProps) {
                 // Si le dernier message vient de l'autre, notifier
                 const lastMsg = newMsgs[newMsgs.length - 1]
                 if (lastMsg.senderId !== currentUser.id) {
-                  trigger('message-received', {
-                    name: otherUser?.firstName,
-                    content: lastMsg.content,
-                    requestId: conversation.requestId
-                  })
+                  playSound('received')
                 }
 
                 // Synchroniser avec le store global
@@ -236,7 +239,7 @@ export default function ChatView({ conversation, onBack }: ChatViewProps) {
     setShowIceBreakers(false)
     setShowSurpriseInput(false)
     setJustSent(true)
-    trigger('message-sent')
+    playSound('sent')
     setTimeout(() => setJustSent(false), 600)
 
     try {

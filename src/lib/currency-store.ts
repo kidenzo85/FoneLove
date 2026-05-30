@@ -185,6 +185,7 @@ export const useCurrencyStore = create<CurrencyState>()(
             const data = await res.json()
             if (data.packs) {
               set({ rawPacks: data.packs })
+              get().refreshPackPrices()
             }
           }
         } catch (err) {
@@ -201,7 +202,7 @@ export const useCurrencyStore = create<CurrencyState>()(
         // Si aucun pack n'est chargé, on ne fait rien
         if (!rawPacks || rawPacks.length === 0) return;
 
-        // Filtrer uniquement les packs CC
+        // Filtrer uniquement les packs CC pour le store de crédits
         const ccPacks = rawPacks.filter(p => p.currency === 'CC')
 
         const packPrices = ccPacks.map((pack) => {

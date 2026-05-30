@@ -68,6 +68,7 @@ export default function AddMomentDialog({ open, onClose }: { open: boolean, onCl
       type: 'photo',
       mediaUrl: url,
       createdAt: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
       user: currentUser,
       isOptimistic: true // pour les styliser avec un spinner si on veut
     }))
@@ -117,7 +118,7 @@ export default function AddMomentDialog({ open, onClose }: { open: boolean, onCl
       // Filtrer les optimistes qu'on vient d'ajouter
       const filteredMoments = currentMoments.filter(m => !tempIds.includes(m.id))
       
-      let newMoments = []
+      let newMoments: any[] = []
       if (data.moments && data.moments.length > 0) {
         newMoments = data.moments.map((m: any) => ({ ...m, user: currentUser }))
       } else if (data.moment) {

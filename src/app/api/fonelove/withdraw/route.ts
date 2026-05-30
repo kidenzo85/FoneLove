@@ -28,10 +28,10 @@ export async function POST(req: NextRequest) {
       where: { userId },
     })
 
-    if (!wallet || wallet.receivedBalance < amount) {
+    if (!wallet || wallet.balance < amount) {
       return NextResponse.json({
-        error: 'Solde FoneLove reçus insuffisant',
-        receivedBalance: wallet?.receivedBalance ?? 0,
+        error: 'Solde FoneLove insuffisant',
+        balance: wallet?.balance ?? 0,
       }, { status: 400 })
     }
 
@@ -40,11 +40,11 @@ export async function POST(req: NextRequest) {
     const commissionAmount = grossValue * (commission / 100)
     const netPayout = grossValue - commissionAmount
 
-    // Debit received balance
+    // Debit balance
     await prisma.foneLoveWallet.update({
       where: { userId },
       data: {
-        receivedBalance: { decrement: amount },
+        balance: { decrement: amount },
         totalWithdrawn: { increment: amount },
       },
     })
@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
         netPayout,
         currency: 'EUR',
       },
-      newReceivedBalance: wallet.receivedBalance - amount,
+      newBalance: wallet.balance - amount,
     })
   } catch (err) {
     console.error('FoneLove withdraw error:', err)

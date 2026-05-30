@@ -325,6 +325,9 @@ export async function POST(req: NextRequest) {
         activatedEffect,
         updatedWallet,
       }
+    }, {
+      maxWait: 5000,
+      timeout: 10000,
     })
 
     if ('error' in result) {
@@ -351,6 +354,6 @@ export async function POST(req: NextRequest) {
     })
   } catch (error) {
     console.error('Spend error:', error)
-    return NextResponse.json({ error: 'Erreur lors de la dépense' }, { status: 500 })
+    return NextResponse.json({ error: 'Erreur lors de la dépense: ' + (error instanceof Error ? error.message : String(error)) }, { status: 500 })
   }
 }

@@ -39,7 +39,7 @@ interface Particle {
 function FloatingParticles() {
   const particles = useMemo<Particle[]>(() => {
     const items: Particle[] = []
-    for (let i = 0; i < 18; i++) {
+    for (let i = 0; i < 8; i++) {
       items.push({
         id: i,
         x: Math.random() * 100,
@@ -51,53 +51,33 @@ function FloatingParticles() {
         drift: (Math.random() - 0.5) * 60,
       })
     }
-    for (let i = 0; i < 4; i++) {
-      items.push({
-        id: 100 + i,
-        x: 10 + Math.random() * 80,
-        size: 10 + Math.random() * 8,
-        duration: 12 + Math.random() * 10,
-        delay: Math.random() * 15,
-        opacity: 0.12 + Math.random() * 0.1,
-        type: 'heart',
-        drift: (Math.random() - 0.5) * 40,
-      })
-    }
     return items
   }, [])
 
   return (
     <div className="pointer-events-none absolute inset-0 z-[1] overflow-hidden">
       {particles.map((p) => (
-        <motion.div
+        <div
           key={p.id}
-          className="absolute"
-          style={{ left: `${p.x}%`, bottom: '-5%' }}
-          animate={{
-            y: [0, -1200],
-            x: [0, p.drift],
-            opacity: [0, p.opacity, p.opacity, 0],
-          }}
-          transition={{
-            duration: p.duration,
-            delay: p.delay,
-            repeat: Infinity,
-            ease: 'linear',
-          }}
+          className="absolute floating-particle"
+          style={{
+            left: `${p.x}%`,
+            bottom: '-5%',
+            '--particle-duration': `${p.duration}s`,
+            '--particle-delay': `${p.delay}s`,
+            '--particle-drift': `${p.drift}px`,
+            '--particle-opacity': p.opacity,
+          } as React.CSSProperties}
         >
-          {p.type === 'dot' ? (
-            <div
-              className="rounded-full bg-white"
-              style={{
-                width: p.size,
-                height: p.size,
-                boxShadow: `0 0 ${p.size * 2}px rgba(255,255,255,0.3)`,
-              }}
-            />
-          ) : (
-            <span style={{ fontSize: p.size, opacity: 0.7 }}>💕</span>
-          )}
-        </motion.div>
+          <div
+            className="rounded-full bg-white"
+            style={{
+              width: p.size,
+              height: p.size,
+              boxShadow: `0 0 ${p.size * 2}px rgba(255,255,255,0.3)`,
+            }}
+          />
+        </div>
       ))}
     </div>
   )
@@ -497,11 +477,9 @@ function PhotoCarousel({
             style={{ backgroundImage: `url(${photos[photoIndex]?.url || ''})` }}
           />
           {/* Actual image layer (contained) */}
-          <motion.div
-            className="absolute inset-0 bg-contain bg-no-repeat bg-center"
+          <div
+            className="absolute inset-0 bg-contain bg-no-repeat bg-center ken-burns-photo"
             style={{ backgroundImage: `url(${photos[photoIndex]?.url || ''})` }}
-            animate={{ scale: [1, 1.02] }}
-            transition={{ duration: 10, ease: 'linear' }}
           />
         </motion.div>
       </AnimatePresence>
@@ -793,17 +771,9 @@ function SideActionBar({
             likeActive ? 'bg-red-500/30' : 'bg-black/30'
           )}
           animate={
-            likeActive
-              ? { scale: [1, 1.3, 1] }
-              : {
-                  boxShadow: [
-                    '0 0 0 0 rgba(239,68,68,0)',
-                    '0 0 15px 5px rgba(239,68,68,0.3)',
-                    '0 0 0 0 rgba(239,68,68,0)',
-                  ],
-                }
+            likeActive ? { scale: [1, 1.3, 1] } : {}
           }
-          transition={likeActive ? { duration: 0.4 } : { repeat: Infinity, duration: 2.5 }}
+          transition={likeActive ? { duration: 0.4 } : {}}
         >
           <Heart className={cn('size-6 transition-colors duration-300', likeActive ? 'text-red-500 fill-red-500' : 'text-white')} />
         </motion.div>
@@ -838,15 +808,6 @@ function SideActionBar({
               : ""
           )}
           style={profile.requestStatus && profile.requestStatus !== 'none' ? {} : { background: 'linear-gradient(135deg, #ec4899, #f43f5e, #f59e0b)' }}
-          animate={profile.requestStatus && profile.requestStatus !== 'none' ? {} : {
-            boxShadow: [
-              '0 0 0 0 rgba(236,72,153,0.3)',
-              '0 0 20px 8px rgba(236,72,153,0.15)',
-              '0 0 0 0 rgba(236,72,153,0.3)',
-            ],
-            scale: [1, 1.05, 1],
-          }}
-          transition={{ repeat: Infinity, duration: 2 }}
         >
           {profile.requestStatus && profile.requestStatus !== 'none' ? null : (
             <motion.div
@@ -990,35 +951,6 @@ function PhotoCounterBadge({ current, total }: { current: number; total: number 
         </span>
       </div>
     </motion.div>
-  )
-}
-
-// ============================================================
-// SCROLL UP HINT
-// ============================================================
-
-function ScrollUpIndicator({ visible }: { visible: boolean }) {
-  const { t } = useT()
-  return (
-    <AnimatePresence>
-      {visible && (
-        <motion.div
-          className="absolute top-20 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center"
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -10 }}
-        >
-          <motion.div
-            animate={{ y: [0, -8, 0] }}
-            transition={{ repeat: Infinity, duration: 1.2, ease: 'easeInOut' }}
-            className="flex items-center gap-1 rounded-full bg-black/50 px-4 py-2 backdrop-blur-sm border border-white/10"
-          >
-            <ChevronUp className="size-4 text-white/70" />
-            <span className="text-xs text-white/70 font-medium">{t('tiktok.swipeUpArrow')}</span>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
   )
 }
 
@@ -1185,7 +1117,6 @@ export default function TikTokViewer({
   const [showHeart, setShowHeart] = useState(false)
   const [heartPos, setHeartPos] = useState({ x: 0, y: 0 })
   const [direction, setDirection] = useState(1)
-  const [showScrollHint, setShowScrollHint] = useState(false)
   const [transitionFlash, setTransitionFlash] = useState(false)
   const [likeCounts, setLikeCounts] = useState<Record<string, number>>({})
   const [requestCounts, setRequestCounts] = useState<Record<string, number>>({})
@@ -1213,8 +1144,8 @@ export default function TikTokViewer({
   // Photo progress for story bars
   useEffect(() => {
     const interval = setInterval(() => {
-      setPhotoProgress((prev) => (prev >= 100 ? 0 : prev + 2))
-    }, 100)
+      setPhotoProgress((prev) => (prev >= 100 ? 0 : prev + 10))
+    }, 500)
     return () => clearInterval(interval)
   }, [currentIndex, currentPhotoIndex])
 
@@ -1231,16 +1162,6 @@ export default function TikTokViewer({
       return () => clearTimeout(t)
     }
   }, [])
-
-  // Show scroll hint after 5s on same profile
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (currentIndex < profiles.length - 1) {
-        setShowScrollHint(true)
-      }
-    }, 5000)
-    return () => clearTimeout(timer)
-  }, [currentIndex, profiles.length])
 
   // Trigger onLoadMore when near end
   useEffect(() => {
@@ -1267,7 +1188,6 @@ export default function TikTokViewer({
     if (currentIndex < profiles.length - 1) {
       setDirection(1)
       setCurrentIndex((prev) => prev + 1)
-      setShowScrollHint(false)
       triggerFlash()
     }
     setTimeout(() => {
@@ -1281,7 +1201,6 @@ export default function TikTokViewer({
     if (currentIndex > 0) {
       setDirection(-1)
       setCurrentIndex((prev) => prev - 1)
-      setShowScrollHint(false)
       triggerFlash()
     }
     setTimeout(() => {
@@ -1595,25 +1514,22 @@ export default function TikTokViewer({
 
   if (!currentProfile) return null
 
-  // Spring animation variants
+  // Spring animation variants (optimized, no blur)
   const slideVariants = {
     enter: (dir: number) => ({
       y: dir > 0 ? '100%' : '-100%',
       opacity: 0.6,
       scale: 0.92,
-      filter: 'blur(4px)',
     }),
     center: {
       y: 0,
       opacity: 1,
       scale: 1,
-      filter: 'blur(0px)',
     },
     exit: (dir: number) => ({
       y: dir > 0 ? '-40%' : '40%',
       opacity: 0,
       scale: 0.88,
-      filter: 'blur(8px)',
     }),
   }
 
@@ -1629,7 +1545,7 @@ export default function TikTokViewer({
       <FloatingParticles />
 
       {/* Profile slides */}
-      <AnimatePresence initial={false} custom={direction} mode="wait">
+      <AnimatePresence initial={false} custom={direction} mode="popLayout">
         <motion.div
           key={currentProfile.id}
           custom={direction}
@@ -1641,13 +1557,12 @@ export default function TikTokViewer({
             y: { type: 'spring', stiffness: 300, damping: 30 },
             opacity: { duration: 0.25 },
             scale: { type: 'spring', stiffness: 300, damping: 30 },
-            filter: { duration: 0.2 },
           }}
           drag="y"
           dragConstraints={{ top: 0, bottom: 0 }}
           dragElastic={0.4}
           onDragEnd={handleDragEnd}
-          className="absolute inset-0 cursor-grab active:cursor-grabbing"
+          className="absolute inset-0 cursor-grab active:cursor-grabbing will-change-transform"
         >
           <PhotoCarousel
             photos={currentPhotos}
@@ -1716,7 +1631,6 @@ export default function TikTokViewer({
 
       <PhotoCounterBadge current={currentPhotoIndex} total={currentPhotos.length} />
       <TransitionFlash active={transitionFlash} />
-      <ScrollUpIndicator visible={showScrollHint} />
       <DoubleTapHeart show={showHeart} x={heartPos.x} y={heartPos.y} />
 
       <AnimatePresence>
@@ -1746,6 +1660,8 @@ export default function TikTokViewer({
 function MiniBottomNav() {
   const { t } = useT()
   const { activeTab, setActiveTab, receivedRequests } = useAppStore()
+  const { hasActiveFeature } = usePremiumFeatures()
+  const hasBoost = hasActiveFeature('boost')
   const pendingCount = receivedRequests.filter((r) => r.status === 'pending').length
 
   const tabs = [
@@ -1780,6 +1696,13 @@ function MiniBottomNav() {
                   <span className="absolute -right-1.5 -top-1 flex h-3 min-w-3 items-center justify-center rounded-full bg-primary px-0.5 text-[8px] font-bold text-primary-foreground">
                     {pendingCount}
                   </span>
+                )}
+                {/* Boost active indicator */}
+                {tab.id === 'discover' && hasBoost && (
+                  <motion.div
+                    className="absolute inset-0 rounded-full border-2 border-amber-500/50 boost-pulse-ring pointer-events-none"
+                    style={{ margin: '-4px' }}
+                  />
                 )}
               </div>
               <span className={cn('text-[9px] font-medium', isActive ? 'text-primary' : 'text-white/40')}>

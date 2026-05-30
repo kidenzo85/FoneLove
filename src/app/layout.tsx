@@ -53,9 +53,14 @@ export default function RootLayout({
 }>) {
   return (
     <I18nProvider>
-      <html lang="fr" className="dark" suppressHydrationWarning>
+      <html lang="fr" suppressHydrationWarning>
         <head>
           <meta name="mobile-web-app-capable" content="yes" />
+          <script
+            dangerouslySetInnerHTML={{
+              __html: `(function(){try{var d=localStorage.getItem('fonelove-dark-mode');if(d==='true')document.documentElement.classList.add('dark')}catch(e){}})()`,
+            }}
+          />
         </head>
         <body
           className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}

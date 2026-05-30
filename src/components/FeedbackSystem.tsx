@@ -1318,15 +1318,20 @@ export default function FeedbackProvider({ children }: { children: React.ReactNo
     const icons = iconSets[type] || ['✨']
     const count = type === 'match' ? 12 : type === 'like' ? 5 : type === 'request-sent' ? 8 : 3
     const newIcons: FloatingIconData[] = []
-    for (let i = 0; i < count; i++) {
-      newIcons.push({
-        id: `${id}-icon-${i}`,
-        icon: icons[Math.floor(Math.random() * icons.length)],
-        x: 20 + Math.random() * 60,
-        delay: i * 0.1,
-        size: 20 + Math.random() * 20,
-      })
+    
+    // No floating icons for 'pass' action to avoid cluttering the screen during fast swipes
+    if (type !== 'pass') {
+      for (let i = 0; i < count; i++) {
+        newIcons.push({
+          id: `${id}-icon-${i}`,
+          icon: icons[Math.floor(Math.random() * icons.length)],
+          x: 20 + Math.random() * 60,
+          delay: i * 0.1,
+          size: 20 + Math.random() * 20,
+        })
+      }
     }
+    
     setFloatingIcons((prev) => [...prev, ...newIcons])
     setTimeout(() => setFloatingIcons((prev) => prev.filter((fi) => !newIcons.includes(fi))), 2500)
 

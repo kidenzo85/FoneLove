@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
       prisma.foneLoveWallet.update({
         where: { userId: receiverId },
         data: {
-          receivedBalance: { increment: amount },
+          balance: { increment: amount },
           totalReceived: { increment: amount },
         },
       }),
@@ -160,28 +160,31 @@ export async function POST(req: NextRequest) {
       select: { firstName: true },
     })
 
-    // Send push notification and save in-app notification asynchronously
+    // Send push notification and save in-app notification safely
     if (sender) {
-      // 1. Save in-app notification
-      prisma.appNotification.create({
-        data: {
-          userId: receiverId,
-          type: 'fonelove_received',
-          title: '🎁 FoneLove reçu !',
-          body: `${sender.firstName} t'a envoyé ${amount} FoneLove ! ${message ? `"${message}"` : ''}`,
-          url: '/?tab=messages',
-        }
-      }).catch(err => console.error('[Gifts API] AppNotification create failed:', err))
+      try {
+        // 1. Save in-app notification
+        await prisma.appNotification.create({
+          data: {
+            userId: receiverId,
+            type: 'fonelove_received',
+            title: '🎁 FoneLove reçu !',
+            body: `${sender.firstName} t'a envoyé ${amount} FoneLove ! ${message ? `"${message}"` : ''}`,
+            url: '/?tab=messages',
+          }
+        })
 
-      // 2. Send Push
-      import('@/lib/push-service').then(({ sendPushToUser }) => {
-        sendPushToUser(receiverId, {
+        // 2. Send Push
+        const { sendPushToUser } = await import('@/lib/push-service')
+        await sendPushToUser(receiverId, {
           title: '🎁 FoneLove reçu !',
           body: `${sender.firstName} t'a envoyé ${amount} FoneLove ! ${message ? `"${message}"` : ''}`,
           type: 'message',
           url: `/?tab=messages`
         })
-      }).catch(err => console.error('[Gifts API] Push trigger failed:', err))
+      } catch (err) {
+        console.error('[Gifts API] Push trigger failed:', err)
+      }
     }
 
     return NextResponse.json({

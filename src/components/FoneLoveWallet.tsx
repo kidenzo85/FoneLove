@@ -18,10 +18,24 @@ const RECHARGE_PACKS = [
 ]
 
 export default function FoneLoveWallet() {
-  const { showWallet, setShowWallet, sendBalance, receivedBalance, totalSent, totalReceived, totalWithdrawn,
+  const { showWallet, setShowWallet, sendBalance, totalSent, totalReceived, totalWithdrawn,
     config, transactions, gifts, orders, fetchWallet, fetchConfig, fetchHistory, rechargeWallet, requestWithdraw } = useFoneLoveStore()
   const currentUser = useAppStore((s) => s.currentUser)
   const formatLocalPrice = useCurrencyStore((s) => s.formatLocalPrice)
+  const rawPacks = useCurrencyStore((s) => s.rawPacks)
+
+  const dynamicPacks = rawPacks?.filter(p => p.currency === 'FL') || []
+  const packsToShow = dynamicPacks.length > 0 
+    ? dynamicPacks.map(p => ({
+        amount: p.amount,
+        label: p.name,
+        icon: p.icon || '💝',
+        gradient: 'from-pink-500/15 to-rose-500/15',
+        priceFormatted: p.priceXaf ? `${p.priceXaf} FCFA` : formatLocalPrice(p.amount * (config?.unitPriceEur ?? 0.50)),
+        best: false,
+        popular: false
+      }))
+    : RECHARGE_PACKS
 
   const [tab, setTab] = useState<'balance' | 'recharge' | 'withdraw' | 'history'>('balance')
   const [processing, setProcessing] = useState(false)
@@ -54,7 +68,7 @@ export default function FoneLoveWallet() {
   const handleWithdraw = async () => {
     if (!currentUser || processing) return
     const min = config?.minWithdrawAmount ?? 10
-    if (withdrawAmount < min || withdrawAmount > receivedBalance) return
+    if (withdrawAmount < min || withdrawAmount > sendBalance) return
     setProcessing(true)
     const ok = await requestWithdraw(currentUser.id, withdrawAmount)
     setProcessing(false)
@@ -123,19 +137,13 @@ export default function FoneLoveWallet() {
 
           {tab === 'balance' && (
             <div className="space-y-4 py-4">
-              {/* Balance cards */}
-              <div className="grid grid-cols-2 gap-3">
+              {/* Balance card */}
+              <div className="grid grid-cols-1 gap-3">
                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-                  className="rounded-2xl border border-pink-500/20 p-4" style={{ background: 'linear-gradient(135deg, rgba(236,72,153,0.08), rgba(244,63,94,0.08))' }}>
-                  <p className="text-[10px] text-muted-foreground uppercase font-bold mb-1">À envoyer</p>
-                  <p className="text-3xl font-black text-pink-500">{sendBalance}</p>
-                  <p className="text-[10px] text-pink-400/60">FoneLove 💝</p>
-                </motion.div>
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-                  className="rounded-2xl border border-amber-500/20 p-4" style={{ background: 'linear-gradient(135deg, rgba(245,158,11,0.08), rgba(234,179,8,0.08))' }}>
-                  <p className="text-[10px] text-muted-foreground uppercase font-bold mb-1">Reçus</p>
-                  <p className="text-3xl font-black text-amber-500">{receivedBalance}</p>
-                  <p className="text-[10px] text-amber-400/60">convertibles 💰</p>
+                  className="rounded-2xl border border-pink-500/20 p-6 flex flex-col items-center justify-center text-center" style={{ background: 'linear-gradient(135deg, rgba(236,72,153,0.08), rgba(244,63,94,0.08))' }}>
+                  <p className="text-xs text-muted-foreground uppercase font-bold mb-2">Mon Solde</p>
+                  <p className="text-5xl font-black text-pink-500">{sendBalance}</p>
+                  <p className="text-xs text-pink-400/60 mt-1">FoneLove 💝</p>
                 </motion.div>
               </div>
 
@@ -244,7 +252,7 @@ export default function FoneLoveWallet() {
 
               {/* Packs */}
               <div className="space-y-2">
-                {RECHARGE_PACKS.map((pack) => (
+                {packsToShow.map((pack) => (
                   <motion.button key={pack.amount} whileTap={{ scale: 0.97 }}
                     onClick={() => handleRecharge(pack.amount)}
                     disabled={processing}
@@ -257,7 +265,7 @@ export default function FoneLoveWallet() {
                       <div className="flex-1">
                         <p className="font-bold text-sm">{pack.label}</p>
                         <p className="text-[10px] text-muted-foreground">
-                          {formatLocalPrice(pack.amount * (config?.unitPriceEur ?? 0.50))}
+                          {pack.priceFormatted || formatLocalPrice(pack.amount * (config?.unitPriceEur ?? 0.50))}
                         </p>
                       </div>
                     </div>
@@ -270,8 +278,8 @@ export default function FoneLoveWallet() {
           {tab === 'withdraw' && (
             <div className="space-y-4 py-4">
               <div className="rounded-2xl border border-amber-500/20 p-4 text-center" style={{ background: 'linear-gradient(135deg, rgba(245,158,11,0.08), rgba(234,179,8,0.08))' }}>
-                <p className="text-xs text-muted-foreground mb-1">FoneLove reçus disponibles</p>
-                <p className="text-4xl font-black text-amber-500">{receivedBalance}</p>
+                <p className="text-xs text-muted-foreground mb-1">FoneLove disponibles pour le retrait</p>
+                <p className="text-4xl font-black text-amber-500">{sendBalance}</p>
               </div>
 
               {/* Amount selector */}
@@ -284,7 +292,7 @@ export default function FoneLoveWallet() {
                     <span className="text-3xl font-black text-amber-500">{withdrawAmount}</span>
                     <span className="text-sm text-muted-foreground ml-1">FL</span>
                   </div>
-                  <button onClick={() => setWithdrawAmount(Math.min(receivedBalance, withdrawAmount + 5))}
+                  <button onClick={() => setWithdrawAmount(Math.min(sendBalance, withdrawAmount + 5))}
                     className="h-10 w-10 rounded-xl bg-muted/50 flex items-center justify-center"><Plus className="size-5" /></button>
                 </div>
               </div>
@@ -298,12 +306,12 @@ export default function FoneLoveWallet() {
               </div>
 
               <Button className="w-full h-14 rounded-2xl text-base font-bold text-white border-0"
-                style={{ background: receivedBalance < (config?.minWithdrawAmount ?? 10) ? '#666' : 'linear-gradient(135deg, #f59e0b, #eab308)' }}
-                onClick={handleWithdraw} disabled={processing || receivedBalance < (config?.minWithdrawAmount ?? 10) || withdrawAmount > receivedBalance}>
+                style={{ background: sendBalance < (config?.minWithdrawAmount ?? 10) ? '#666' : 'linear-gradient(135deg, #f59e0b, #eab308)' }}
+                onClick={handleWithdraw} disabled={processing || sendBalance < (config?.minWithdrawAmount ?? 10) || withdrawAmount > sendBalance}>
                 {processing ? 'Traitement...' : `Retirer ${formatLocalPrice(netPayout)}`}
               </Button>
 
-              {receivedBalance < (config?.minWithdrawAmount ?? 10) && (
+              {sendBalance < (config?.minWithdrawAmount ?? 10) && (
                 <p className="text-xs text-muted-foreground text-center">Minimum {config?.minWithdrawAmount ?? 10} FoneLove pour retirer</p>
               )}
             </div>

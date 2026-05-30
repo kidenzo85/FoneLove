@@ -52,28 +52,31 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    // Send push notification asynchronously
+    // Send push notification safely
     if (sender) {
-      // 1. In-App Notification
-      prisma.appNotification.create({
-        data: {
-          userId: receiverId,
-          type: 'number_request',
-          title: '📞 Demande de numéro !',
-          body: `${sender.firstName} aimerait avoir ton numéro.`,
-          url: '/?tab=requests',
-        }
-      }).catch(err => console.error('[Requests API] AppNotification create failed:', err))
+      try {
+        // 1. In-App Notification
+        await prisma.appNotification.create({
+          data: {
+            userId: receiverId,
+            type: 'number_request',
+            title: '📞 Demande de numéro !',
+            body: `${sender.firstName} aimerait avoir ton numéro.`,
+            url: '/?tab=requests',
+          }
+        })
 
-      // 2. Push Notification
-      import('@/lib/push-service').then(({ sendPushToUser }) => {
-        sendPushToUser(receiverId, {
+        // 2. Push Notification
+        const { sendPushToUser } = await import('@/lib/push-service')
+        await sendPushToUser(receiverId, {
           title: '📞 Demande de numéro !',
           body: `${sender.firstName} aimerait avoir ton numéro.`,
           type: 'request',
           url: '/?tab=requests'
         })
-      }).catch(err => console.error('[Requests API] Push trigger failed:', err))
+      } catch (err) {
+        console.error('[Requests API] Push trigger failed:', err)
+      }
     }
 
     return NextResponse.json({
@@ -215,15 +218,16 @@ export async function PUT(req: NextRequest) {
       })
     }
 
-    // Send push notification asynchronously for status updates
-    prisma.user.findUnique({
-      where: { id: request.receiverId },
-      select: { firstName: true }
-    }).then(async (receiver) => {
+    // Send push notification safely for status updates
+    try {
+      const receiver = await prisma.user.findUnique({
+        where: { id: request.receiverId },
+        select: { firstName: true }
+      })
       if (receiver) {
         const { sendPushToUser } = await import('@/lib/push-service')
         if (status === 'accepted') {
-          prisma.appNotification.create({
+          await prisma.appNotification.create({
             data: {
               userId: request.senderId,
               type: 'request_accepted',
@@ -231,7 +235,7 @@ export async function PUT(req: NextRequest) {
               body: `${receiver.firstName} a partagé son numéro avec toi !`,
               url: '/?tab=requests',
             }
-          }).catch(err => console.error('[Requests PUT API] AppNotification create failed:', err))
+          })
 
           await sendPushToUser(request.senderId, {
             title: '🎉 Demande acceptée !',
@@ -240,7 +244,7 @@ export async function PUT(req: NextRequest) {
             url: '/?tab=requests'
           })
         } else if (status === 'declined') {
-          prisma.appNotification.create({
+          await prisma.appNotification.create({
             data: {
               userId: request.senderId,
               type: 'request_declined',
@@ -248,7 +252,7 @@ export async function PUT(req: NextRequest) {
               body: `Ta demande auprès de ${receiver.firstName} n'a pas abouti.`,
               url: '/?tab=requests',
             }
-          }).catch(err => console.error('[Requests PUT API] AppNotification create failed:', err))
+          })
 
           await sendPushToUser(request.senderId, {
             title: '📞 Demande de numéro',
@@ -258,7 +262,9 @@ export async function PUT(req: NextRequest) {
           })
         }
       }
-    }).catch(err => console.error('[Requests PUT API] Push trigger failed:', err))
+    } catch (err) {
+      console.error('[Requests PUT API] Push trigger failed:', err)
+    }
 
     return NextResponse.json({
       request: mapRequest(request),

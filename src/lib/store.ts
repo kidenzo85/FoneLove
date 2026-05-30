@@ -131,6 +131,7 @@ export interface MomentItem {
   expiresAt: string
   createdAt: string
   user?: ProfileWithDetails
+  isOptimistic?: boolean
 }
 
 export interface FilterState {
@@ -192,6 +193,7 @@ interface AppState {
   isLoading: boolean
   minimizedConversation: ConversationItem | null
   autoOpenRequestId: string | null
+  activeChatUserId: string | null
 
   // Filters
   filters: FilterState
@@ -218,6 +220,7 @@ interface AppState {
   setIsLoading: (val: boolean) => void
   setMinimizedConversation: (conv: ConversationItem | null) => void
   setAutoOpenRequestId: (id: string | null) => void
+  setActiveChatUserId: (id: string | null) => void
   setFilters: (filters: FilterState) => void
   setNextCursor: (cursor: string | null) => void
   setHasMore: (val: boolean) => void
@@ -269,6 +272,7 @@ export const useAppStore = create<AppState>()(
       isLoading: false,
       minimizedConversation: null,
       autoOpenRequestId: null,
+      activeChatUserId: null,
 
       // Filters
       filters: {
@@ -303,6 +307,7 @@ export const useAppStore = create<AppState>()(
       setIsLoading: (val) => set({ isLoading: val }),
       setMinimizedConversation: (conv) => set({ minimizedConversation: conv }),
       setAutoOpenRequestId: (id) => set({ autoOpenRequestId: id }),
+      setActiveChatUserId: (id) => set({ activeChatUserId: id }),
       setFilters: (filters) => set({ filters }),
       setNextCursor: (cursor) => set({ nextCursor: cursor }),
       setHasMore: (val) => set({ hasMore: val }),

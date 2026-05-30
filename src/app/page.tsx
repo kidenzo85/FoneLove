@@ -1,12 +1,12 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Heart, Phone, MessageCircle, Users, SlidersHorizontal,
   LayoutGrid, Columns, Sparkles, RefreshCw, LogOut, Eye,
   Shield, Moon, Sun, Volume2, VolumeX, Pause, Play,
-  ChevronRight, MapPin, X, Camera, MessageSquare
+  ChevronRight, MapPin, X, Camera, MessageSquare, Bell
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -49,6 +49,7 @@ import StreakWidget from '@/components/StreakWidget'
 import LandingPage from '@/components/LandingPage'
 import ChallengeWidget from '@/components/ChallengeWidget'
 import { useConnectCoinStore } from '@/lib/connectcoin-store'
+import { playSound } from '@/lib/sounds'
 import { usePremiumFeatures } from '@/lib/premium-features-store'
 import ProfileEditor from '@/components/ProfileEditor'
 import DatingPoster from '@/components/DatingPoster'
@@ -61,7 +62,6 @@ import NotificationSubscribeCard from '@/components/NotificationSubscribeCard'
 import NotificationOptInBanner from '@/components/NotificationOptInBanner'
 import { NotificationCenter } from '@/components/NotificationCenter'
 import { NotificationSettingsSheet } from '@/components/NotificationSettingsSheet'
-import { Bell } from 'lucide-react'
 import ActiveFeaturesPill from '@/components/ActiveFeaturesPill'
 import ActiveFeaturesSheet from '@/components/ActiveFeaturesSheet'
 
@@ -526,6 +526,7 @@ function MessagesTab() {
         const data = await res.json()
         if (data.conversations) {
           const oldConvs = useAppStore.getState().conversations
+          const activeChatUserId = useAppStore.getState().activeChatUserId
           
           data.conversations.forEach((newConv: any) => {
             const oldConv = oldConvs.find(c => c.requestId === newConv.requestId)
@@ -534,7 +535,8 @@ function MessagesTab() {
               const lastMsg = newConv.messages[newConv.messages.length - 1]
               if (lastMsg.senderId !== currentUser.id) {
                 // Show notification if NOT in this chat
-                if (activeConversation?.requestId !== newConv.requestId) {
+                if (newConv.otherUser.id !== activeChatUserId) {
+                  playSound('received')
                   trigger('message-received', {
                     name: newConv.otherUser.firstName,
                     content: lastMsg.content,
@@ -670,7 +672,13 @@ function ProfileTab({ onOpenAdmin }: { onOpenAdmin: () => void }) {
   const displayStreakDays = storeStreak?.currentStreak ?? currentUser?.streakDays ?? 0
   const [showVisitors, setShowVisitors] = useState(false)
   const [showPoster, setShowPoster] = useState(false)
-  const [darkMode, setDarkMode] = useState(true)
+  const [darkMode, setDarkMode] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('fonelove-dark-mode')
+      if (saved !== null) return saved === 'true'
+    }
+    return false // Mode jour par défaut
+  })
   const [incognito, setIncognito] = useState(false)
   const [paused, setPaused] = useState(false)
   const [showActiveFeaturesSheet, setShowActiveFeaturesSheet] = useState(false)
@@ -685,6 +693,7 @@ function ProfileTab({ onOpenAdmin }: { onOpenAdmin: () => void }) {
     } else {
       document.documentElement.classList.remove('dark')
     }
+    localStorage.setItem('fonelove-dark-mode', String(darkMode))
   }, [darkMode])
 
   if (!currentUser) return null
@@ -1930,6 +1939,20 @@ function AppContent() {
     window.addEventListener('popstate', handlePopState)
     return () => window.removeEventListener('popstate', handlePopState)
   }, [])
+
+  // Prevent accidental page refresh (pull-to-refresh, F5, Ctrl+R, swipe)
+  useEffect(() => {
+    if (typeof window === 'undefined' || !isAuthenticated) return
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+      // Modern browsers require returnValue to be set
+      e.returnValue = ''
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [isAuthenticated])
 
   const handleRequestNumber = (profile: ProfileWithDetails) => {
     setRequestTarget(profile)

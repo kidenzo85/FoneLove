@@ -41,7 +41,6 @@ export default function FoneLoveBalance({ compact = false }: FoneLoveBalanceProp
     }
   }, [sendBalance, prevBalance])
 
-  const hasReceived = receivedBalance > 0
 
   return (
     <motion.button
@@ -77,17 +76,7 @@ export default function FoneLoveBalance({ compact = false }: FoneLoveBalanceProp
         FL
       </span>
 
-      {/* Notification dot for received FoneLove */}
-      {hasReceived && (
-        <motion.div
-          className="absolute -top-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full"
-          style={{ background: 'linear-gradient(135deg, #f59e0b, #eab308)' }}
-          animate={{ scale: [1, 1.2, 1] }}
-          transition={{ repeat: Infinity, duration: 1.5 }}
-        >
-          <span className="text-[7px] font-bold text-black">{receivedBalance > 99 ? '99' : receivedBalance}</span>
-        </motion.div>
-      )}
+
     </motion.button>
   )
 }

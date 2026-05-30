@@ -2857,10 +2857,10 @@ export default function AdminDashboard({ currentUser, onBackToApp }: AdminDashbo
   }
 
   const pendingReportsCount = reports.length
-  const newUsersTodayCount = users.filter(u => new Date(u.createdAt).toDateString() === new Date().toDateString()).length
-  const pendingRequestsCount = requests.filter(r => r.status === 'pending').length
+  const newUsersTodayCount = users.filter(u => new Date(u.inscription).toDateString() === new Date().toDateString()).length
+  const pendingRequestsCount = requests.filter(r => r.status === 'En attente').length
 
-  const notifications = []
+  const notifications: {text: string, time: string, read: boolean}[] = []
   if (pendingReportsCount > 0) {
     notifications.push({ text: `${pendingReportsCount} signalement(s) total enregistré(s)`, time: "Récent", read: false })
   }

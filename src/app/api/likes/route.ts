@@ -50,11 +50,12 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    // Send push notification asynchronously
-    prisma.user.findMany({
-      where: { id: { in: [senderId, receiverId] } },
-      select: { id: true, firstName: true }
-    }).then(async (users) => {
+    // Send push notification synchronously
+    try {
+      const users = await prisma.user.findMany({
+        where: { id: { in: [senderId, receiverId] } },
+        select: { id: true, firstName: true }
+      })
       const sender = users.find(u => u.id === senderId)
       const receiver = users.find(u => u.id === receiverId)
       const { sendPushToUser } = await import('@/lib/push-service')
@@ -81,7 +82,7 @@ export async function POST(req: NextRequest) {
                 url: '/?tab=messages',
               }
             })
-          ]).catch(err => console.error('[Likes API] AppNotification create failed:', err))
+          ])
 
           // 2. Push Notifications
           await sendPushToUser(senderId, {
@@ -99,7 +100,7 @@ export async function POST(req: NextRequest) {
         }
       } else {
         // 1. In-App Notification
-        prisma.appNotification.create({
+        await prisma.appNotification.create({
           data: {
             userId: receiverId,
             type: 'profile_liked',
@@ -107,7 +108,7 @@ export async function POST(req: NextRequest) {
             body: `Quelqu'un t'a envoyé un J'aime. Découvre vite qui c'est !`,
             url: '/',
           }
-        }).catch(err => console.error('[Likes API] AppNotification create failed:', err))
+        })
 
         // 2. Push Notification
         await sendPushToUser(receiverId, {
@@ -117,7 +118,9 @@ export async function POST(req: NextRequest) {
           url: '/'
         })
       }
-    }).catch(err => console.error('[Likes API] Push trigger failed:', err))
+    } catch (err) {
+      console.error('[Likes API] Push trigger failed:', err)
+    }
 
     return NextResponse.json({ liked: true, isMutual, like })
   } catch (error) {

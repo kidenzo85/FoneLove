@@ -231,22 +231,32 @@ export async function POST(req: NextRequest) {
 
     const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000)
 
-    const message = await prisma.message.create({
-      data: {
-        senderId,
-        receiverId,
-        requestId: requestId || null,
-        content,
-        type: type || 'text',
-        expiresAt,
-      },
-    })
+    let message
+    try {
+      message = await prisma.message.create({
+        data: {
+          senderId,
+          receiverId,
+          requestId: requestId || null,
+          content,
+          type: type || 'text',
+          expiresAt,
+        },
+      })
+    } catch (dbError: any) {
+      console.error('Message DB creation error:', dbError)
+      if (dbError.code === 'P2003') {
+        return NextResponse.json({ error: "L'utilisateur n'est plus disponible (compte supprimé)." }, { status: 400 })
+      }
+      return NextResponse.json({ error: "Impossible d'envoyer le message pour le moment." }, { status: 500 })
+    }
 
-    // Send push notification asynchronously (fire and forget with safe error logging)
-    prisma.user.findUnique({
-      where: { id: senderId },
-      select: { firstName: true }
-    }).then(async (sender) => {
+    // Send push notification synchronously to avoid execution abort on serverless
+    try {
+      const sender = await prisma.user.findUnique({
+        where: { id: senderId },
+        select: { firstName: true }
+      })
       if (sender) {
         const { sendPushToUser } = await import('@/lib/push-service')
         await sendPushToUser(receiverId, {
@@ -256,9 +266,9 @@ export async function POST(req: NextRequest) {
           url: `/?tab=messages`
         })
       }
-    }).catch(err => {
+    } catch (err) {
       console.error('[Messages API] Push trigger failed:', err)
-    })
+    }
 
     return NextResponse.json({
       message: {

@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion'
 import { Heart, Phone, MessageCircle, Users, User } from 'lucide-react'
 import { useAppStore, type TabType } from '@/lib/store'
+import { usePremiumFeatures } from '@/lib/premium-features-store'
 import { cn } from '@/lib/utils'
 import { useT } from '@/lib/i18n/context'
 
@@ -24,6 +25,8 @@ const tabLabels: Record<TabType, string> = {
 
 export default function BottomNav() {
   const { activeTab, setActiveTab, receivedRequests, conversations, currentUser } = useAppStore()
+  const { hasActiveFeature } = usePremiumFeatures()
+  const hasBoost = hasActiveFeature('boost')
   const { t } = useT()
   const pendingCount = receivedRequests.filter((r) => r.status === 'pending').length
   
@@ -67,6 +70,13 @@ export default function BottomNav() {
                     )}
                     style={isActive ? { color: 'url(#fonelove-grad)' } : {}}
                   />
+                  {/* Boost active indicator */}
+                  {tab.id === 'discover' && hasBoost && (
+                    <motion.div
+                      className="absolute inset-0 rounded-full border-2 border-amber-500/50 boost-pulse-ring pointer-events-none"
+                      style={{ margin: '-4px' }}
+                    />
+                  )}
                   {/* We use a SVG filter/mask for the icon if needed, but for now just use the rose color as base */}
                 </motion.div>
                 {showBadge && (

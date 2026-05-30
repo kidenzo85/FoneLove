@@ -342,6 +342,19 @@ export function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) return
 
   const register = async () => {
+    if (process.env.NODE_ENV === 'development') {
+      try {
+        const registrations = await navigator.serviceWorker.getRegistrations()
+        for (const registration of registrations) {
+          await registration.unregister()
+        }
+        console.log('[PWA] Service Workers unregistered in development mode to avoid InvalidStateError')
+      } catch (error) {
+        console.error('[PWA] Failed to unregister Service Worker:', error)
+      }
+      return
+    }
+
     try {
       const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' })
       console.log('[PWA] Service Worker registered:', registration.scope)

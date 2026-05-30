@@ -28,11 +28,19 @@ export async function GET(req: NextRequest) {
       wallet = await prisma.foneLoveWallet.create({
         data: { userId },
       })
+    } else if (wallet.receivedBalance > 0) {
+      // Auto-migrate old receivedBalance to unified balance
+      wallet = await prisma.foneLoveWallet.update({
+        where: { id: wallet.id },
+        data: {
+          balance: wallet.balance + wallet.receivedBalance,
+          receivedBalance: 0,
+        },
+      })
     }
 
     return NextResponse.json({
       balance: wallet.balance,
-      receivedBalance: wallet.receivedBalance,
       totalSent: wallet.totalSent,
       totalReceived: wallet.totalReceived,
       totalWithdrawn: wallet.totalWithdrawn,
