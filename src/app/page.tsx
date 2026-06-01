@@ -203,6 +203,9 @@ function DiscoverTab({ onRequest }: { onRequest: (profile: ProfileWithDetails) =
         </div>
 
         <div className="flex-1 overflow-y-auto overscroll-y-contain px-4 pb-2">
+          <div className="mb-4">
+             <NotificationSubscribeCard />
+          </div>
           <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
             {profiles.map((profile, idx) => {
               const photo = profile.photos?.[0]?.url || `https://i.pravatar.cc/300?img=1`
@@ -586,6 +589,9 @@ function MessagesTab() {
       </div>
 
       <div className="flex-1 overflow-y-auto overscroll-y-contain px-4 pb-20">
+        <div className="mb-4 mt-2">
+           <NotificationSubscribeCard />
+        </div>
         <ConversationList
           conversations={conversations}
           onSelect={setActiveConversation}
@@ -627,6 +633,10 @@ function ConnectionsTab() {
       </div>
 
       <div className="flex-1 overflow-y-auto overscroll-y-contain px-4 pb-20">
+        <div className="mb-4">
+           <NotificationSubscribeCard />
+        </div>
+
         {/* Moments Section - Toujours visible pour afficher le bouton "Moi" */}
         <div className="mb-4">
           <h3 className="mb-2 text-sm font-semibold text-muted-foreground">{t('connections.moments')}</h3>

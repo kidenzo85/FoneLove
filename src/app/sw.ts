@@ -40,8 +40,8 @@ self.addEventListener("push", (event: any) => {
     const options = {
       body: data.body,
       // On utilise l'icône de la PWA pour la notification
-      icon: "/icon-192x192.png",
-      badge: "/icon-192x192.png",
+      icon: "/icons/icon-192.png",
+      badge: "/icons/icon-192.png",
       image: data.image,
       vibrate: [200, 100, 200], // Vibration basique pour attirer l'attention
       data: {
