@@ -1823,6 +1823,11 @@ function SettingsPage({ currentUserId }: { currentUserId: string }) {
     }
   }
 
+  const parseNumber = (val: string) => {
+    const parsed = parseFloat(val.replace(',', '.'));
+    return isNaN(parsed) ? undefined : parsed;
+  };
+
   const handleSaveFoneLove = async () => {
     try {
       const res = await fetch('/api/fonelove/config', {
@@ -1832,10 +1837,10 @@ function SettingsPage({ currentUserId }: { currentUserId: string }) {
           'x-admin-secret': localStorage.getItem('adminSecret') || ''
         },
         body: JSON.stringify({
-          unitPriceEur: parseFloat(flUnitPrice),
-          withdrawValueEur: parseFloat(flWithdrawValue),
-          commissionPercent: parseFloat(flCommission),
-          minWithdrawAmount: parseFloat(flMinWithdraw),
+          unitPriceEur: parseNumber(flUnitPrice),
+          withdrawValueEur: parseNumber(flWithdrawValue),
+          commissionPercent: parseNumber(flCommission),
+          minWithdrawAmount: parseNumber(flMinWithdraw),
         })
       });
       if (res.ok) alert('Économie FoneLove sauvegardée');

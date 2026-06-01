@@ -51,12 +51,12 @@ export async function PUT(req: NextRequest) {
       config = await prisma.foneLoveConfig.update({
         where: { id: config.id },
         data: {
-          ...(body.unitPriceEur !== undefined && { unitPriceEur: body.unitPriceEur }),
-          ...(body.withdrawValueEur !== undefined && { withdrawValueEur: body.withdrawValueEur }),
-          ...(body.commissionPercent !== undefined && { commissionPercent: body.commissionPercent }),
-          ...(body.minWithdrawAmount !== undefined && { minWithdrawAmount: body.minWithdrawAmount }),
-          ...(body.maxDailyGiftPerUser !== undefined && { maxDailyGiftPerUser: body.maxDailyGiftPerUser }),
-          ...(body.isActive !== undefined && { isActive: body.isActive }),
+          ...(typeof body.unitPriceEur === 'number' && { unitPriceEur: body.unitPriceEur }),
+          ...(typeof body.withdrawValueEur === 'number' && { withdrawValueEur: body.withdrawValueEur }),
+          ...(typeof body.commissionPercent === 'number' && { commissionPercent: body.commissionPercent }),
+          ...(typeof body.minWithdrawAmount === 'number' && { minWithdrawAmount: body.minWithdrawAmount }),
+          ...(typeof body.maxDailyGiftPerUser === 'number' && { maxDailyGiftPerUser: body.maxDailyGiftPerUser }),
+          ...(typeof body.isActive === 'boolean' && { isActive: body.isActive }),
         },
       })
     }

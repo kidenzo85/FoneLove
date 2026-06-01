@@ -39,8 +39,8 @@ Exemple: node scripts/test-push-background.cjs 0612345678
       console.log('Utilisateurs récents avec des abonnements actifs :')
       const userIds = [...new Set(data.map(d => d.user_id))]
       for (const id of userIds) {
-        const { data: profile } = await supabase.from('profiles').select('phone_number').eq('id', id).single()
-        console.log(`- ${profile?.phone_number || id}`)
+        const { data: userRecord } = await supabase.from('User').select('phone').eq('id', id).single()
+        console.log(`- ${userRecord?.phone || id}`)
       }
     }
     process.exit(1)
@@ -50,19 +50,19 @@ Exemple: node scripts/test-push-background.cjs 0612345678
   console.log(`🔍 Recherche de l'utilisateur: ${userPhoneOrEmail}`)
   let userId = null
   
-  const { data: profiles, error: pErr } = await supabase
-    .from('profiles')
-    .select('id, phone_number')
-    .ilike('phone_number', `%${userPhoneOrEmail}%`)
+  const { data: users, error: uErr } = await supabase
+    .from('User')
+    .select('id, phone, email')
+    .or(`phone.ilike.%${userPhoneOrEmail}%,email.ilike.%${userPhoneOrEmail}%`)
     .limit(1)
 
-  if (pErr || !profiles || profiles.length === 0) {
-    // Try auth.users if needed or exact match
-    console.log(`⚠️ Utilisateur non trouvé dans 'profiles', vérifiez le numéro.`)
+  if (uErr || !users || users.length === 0) {
+    console.log(`⚠️ Utilisateur non trouvé dans la table 'User', vérifiez le numéro ou l'email.`)
+    console.error(uErr)
     process.exit(1)
   }
   
-  userId = profiles[0].id
+  userId = users[0].id
   console.log(`✅ Utilisateur trouvé ! ID: ${userId}`)
 
   // Find active subscriptions
