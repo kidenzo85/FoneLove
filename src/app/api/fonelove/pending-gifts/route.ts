@@ -42,8 +42,12 @@ export async function GET(req: NextRequest) {
         senderName: gift.sender?.user?.firstName || 'Quelqu\'un',
       }
     })
-  } catch (error) {
-    console.error('Pending gifts GET error:', error)
+  } catch (error: any) {
+    if (error.code === 'P1001') {
+      console.warn('[Pending Gifts API] Prisma pooling error (P1001): Database unreachable. Returning graceful fallback.')
+      return NextResponse.json({ gift: null }, { status: 200 }) // Graceful fallback
+    }
+    console.error('Pending gifts GET error:', error.message || error)
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Erreur serveur' }, { status: 500 })
   }
 }

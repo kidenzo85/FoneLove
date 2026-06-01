@@ -6,6 +6,8 @@ import { I18nProvider } from "@/lib/i18n/context";
 import InstallPrompt from "@/components/InstallPrompt";
 import CurrencyInitializer from "@/components/CurrencyInitializer";
 
+import Script from "next/script";
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -56,15 +58,17 @@ export default function RootLayout({
       <html lang="fr" suppressHydrationWarning>
         <head>
           <meta name="mobile-web-app-capable" content="yes" />
-          <script
-            dangerouslySetInnerHTML={{
-              __html: `(function(){try{var d=localStorage.getItem('fonelove-dark-mode');if(d==='true')document.documentElement.classList.add('dark')}catch(e){}})()`,
-            }}
-          />
         </head>
         <body
           className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
         >
+          <Script
+            id="dark-mode-init"
+            strategy="beforeInteractive"
+            dangerouslySetInnerHTML={{
+              __html: `(function(){try{var d=localStorage.getItem('fonelove-dark-mode');if(d==='true')document.documentElement.classList.add('dark')}catch(e){}})()`,
+            }}
+          />
           {children}
           <CurrencyInitializer />
           <InstallPrompt />

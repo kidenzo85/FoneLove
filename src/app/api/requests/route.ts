@@ -155,9 +155,13 @@ export async function GET(req: NextRequest) {
       console.log('Returning sent requests:', JSON.stringify(result).substring(0, 100));
       return NextResponse.json(result)
     }
-  } catch (error) {
-    console.error('Request GET error:', error)
-    return NextResponse.json({ error: 'Erreur serveur', details: (error as any).message, stack: (error as any).stack }, { status: 500 })
+  } catch (error: any) {
+    if (error.code === 'P1001') {
+      console.warn('[Requests API] Prisma pooling error (P1001): Database unreachable. Returning graceful fallback.')
+      return NextResponse.json({ requests: [] }, { status: 200 }) // Graceful fallback to avoid UI wipe/crashes
+    }
+    console.error('Request GET error:', error.message || error)
+    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
   }
 }
 

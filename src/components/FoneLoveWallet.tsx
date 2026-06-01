@@ -127,9 +127,9 @@ export default function FoneLoveWallet() {
                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
                   className="rounded-2xl border border-pink-500/20 p-6 flex flex-col items-center justify-center text-center" style={{ background: 'linear-gradient(135deg, rgba(236,72,153,0.08), rgba(244,63,94,0.08))' }}>
                   <p className="text-xs text-muted-foreground uppercase font-bold mb-2">Mon Solde</p>
-                  <p className="text-5xl font-black text-pink-500 flex items-center justify-center gap-2">
+                  <div className="text-5xl font-black text-pink-500 flex items-center justify-center gap-2">
                     {sendBalance} <FoneLoveIcon className="size-8" />
-                  </p>
+                  </div>
                   <p className="text-xs text-pink-400/60 mt-1">FoneLove disponibles</p>
                 </motion.div>
               </div>
@@ -287,9 +287,9 @@ export default function FoneLoveWallet() {
             <div className="space-y-4 py-4">
               <div className="rounded-2xl border border-amber-500/20 p-4 text-center" style={{ background: 'linear-gradient(135deg, rgba(245,158,11,0.08), rgba(234,179,8,0.08))' }}>
                 <p className="text-xs text-muted-foreground mb-1">FoneLoves disponibles pour le retrait</p>
-                <p className="text-4xl font-black text-amber-500 flex items-center justify-center gap-2">
+                <div className="text-4xl font-black text-amber-500 flex items-center justify-center gap-2">
                   {sendBalance} <FoneLoveIcon className="size-8" glow={false} />
-                </p>
+                </div>
               </div>
 
               {/* Amount selector */}

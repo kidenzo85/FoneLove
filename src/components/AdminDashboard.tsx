@@ -1775,6 +1775,26 @@ function SettingsPage({ currentUserId }: { currentUserId: string }) {
   const [pushNotif, setPushNotif] = useState(true)
   const [reportNotif, setReportNotif] = useState(true)
 
+  // FoneLove Config
+  const [flUnitPrice, setFlUnitPrice] = useState('0.50')
+  const [flWithdrawValue, setFlWithdrawValue] = useState('0.30')
+  const [flCommission, setFlCommission] = useState('40')
+  const [flMinWithdraw, setFlMinWithdraw] = useState('10')
+
+  useEffect(() => {
+    fetch('/api/fonelove/config')
+      .then(res => res.json())
+      .then(data => {
+        if (data.config) {
+          setFlUnitPrice(data.config.unitPriceEur?.toString() || '0.50')
+          setFlWithdrawValue(data.config.withdrawValueEur?.toString() || '0.30')
+          setFlCommission(data.config.commissionPercent?.toString() || '40')
+          setFlMinWithdraw(data.config.minWithdrawAmount?.toString() || '10')
+        }
+      })
+      .catch(console.error)
+  }, [])
+
   const handleSaveSettings = async () => {
     try {
       const res = await fetch('/api/admin/config', {
@@ -1797,6 +1817,28 @@ function SettingsPage({ currentUserId }: { currentUserId: string }) {
         })
       });
       if (res.ok) alert('Configuration sauvegardée avec succès');
+      else alert('Erreur lors de la sauvegarde');
+    } catch (e) {
+      alert('Erreur réseau');
+    }
+  }
+
+  const handleSaveFoneLove = async () => {
+    try {
+      const res = await fetch('/api/fonelove/config', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-secret': localStorage.getItem('adminSecret') || ''
+        },
+        body: JSON.stringify({
+          unitPriceEur: parseFloat(flUnitPrice),
+          withdrawValueEur: parseFloat(flWithdrawValue),
+          commissionPercent: parseFloat(flCommission),
+          minWithdrawAmount: parseFloat(flMinWithdraw),
+        })
+      });
+      if (res.ok) alert('Économie FoneLove sauvegardée');
       else alert('Erreur lors de la sauvegarde');
     } catch (e) {
       alert('Erreur réseau');
@@ -1917,19 +1959,24 @@ function SettingsPage({ currentUserId }: { currentUserId: string }) {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
+            <Label>Prix d'achat (en € par FoneLove)</Label>
+            <Input type="number" step="0.01" value={flUnitPrice} onChange={(e) => setFlUnitPrice(e.target.value)} min="0" />
+            <p className="text-xs text-muted-foreground">Le prix de vente d'un FoneLove à l'utilisateur.</p>
+          </div>
+          <div className="space-y-2">
             <Label>Commission (en %)</Label>
-            <Input type="number" defaultValue="40" min="0" max="100" />
-            <p className="text-xs text-muted-foreground">La plateforme prend 40% sur les FoneLove retirés</p>
+            <Input type="number" value={flCommission} onChange={(e) => setFlCommission(e.target.value)} min="0" max="100" />
+            <p className="text-xs text-muted-foreground">La plateforme prend {flCommission}% sur les FoneLove retirés</p>
           </div>
           <div className="space-y-2">
             <Label>Valeur de retrait (en € par FoneLove)</Label>
-            <Input type="number" step="0.01" defaultValue="0.30" min="0" />
+            <Input type="number" step="0.01" value={flWithdrawValue} onChange={(e) => setFlWithdrawValue(e.target.value)} min="0" />
           </div>
           <div className="space-y-2">
             <Label>Seuil minimum de retrait (FoneLove)</Label>
-            <Input type="number" defaultValue="10" min="1" />
+            <Input type="number" value={flMinWithdraw} onChange={(e) => setFlMinWithdraw(e.target.value)} min="1" />
           </div>
-          <Button className="bg-pink-600 hover:bg-pink-700">Sauvegarder FoneLove</Button>
+          <Button onClick={handleSaveFoneLove} className="bg-pink-600 hover:bg-pink-700">Sauvegarder FoneLove</Button>
         </CardContent>
       </Card>
 
