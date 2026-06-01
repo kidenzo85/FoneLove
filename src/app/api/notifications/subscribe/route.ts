@@ -1,8 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!
+import prisma from '@/lib/prisma'
 
 export async function POST(req: NextRequest) {
   try {
@@ -12,31 +9,28 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
-      auth: { autoRefreshToken: false, persistSession: false },
+    const subscription = await prisma.pushSubscription.upsert({
+      where: { endpoint },
+      update: {
+        userId,
+        p256dhKey: p256dh,
+        authKey: auth,
+        userAgent: userAgent || null,
+        deviceType: deviceType || 'unknown',
+        isActive: true,
+      },
+      create: {
+        userId,
+        endpoint,
+        p256dhKey: p256dh,
+        authKey: auth,
+        userAgent: userAgent || null,
+        deviceType: deviceType || 'unknown',
+        isActive: true,
+      },
     })
 
-    // Use direct upsert on the push_subscriptions table
-    const { data, error } = await supabase
-      .from('push_subscriptions')
-      .upsert({
-        user_id: userId,
-        endpoint,
-        p256dh_key: p256dh,
-        auth_key: auth,
-        user_agent: userAgent || null,
-        device_type: deviceType || 'unknown',
-        is_active: true,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: 'endpoint' })
-      .select('id')
-      .single()
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
-    }
-
-    return NextResponse.json({ success: true, subscriptionId: data?.id })
+    return NextResponse.json({ success: true, subscriptionId: subscription.id })
   } catch (error) {
     return NextResponse.json({ error: (error as Error).message }, { status: 500 })
   }
