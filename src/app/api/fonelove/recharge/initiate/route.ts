@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { createPaylink, generateOrderRef } from '@/lib/coolpay'
-
-// Packs FoneLove sont maintenant gérés en base de données (PackConfig)
+import { applyPsychologicalRounding, getRoundingMode } from '@/lib/currency-constants'
 
 /**
  * POST /api/fonelove/recharge/initiate
@@ -15,24 +14,26 @@ export async function POST(req: NextRequest) {
   try {
     const { userId, flAmount } = await req.json()
 
-    if (!userId || !flAmount) {
-      return NextResponse.json({ error: 'userId et flAmount sont requis' }, { status: 400 })
+    if (!userId || !flAmount || flAmount <= 0) {
+      return NextResponse.json({ error: 'userId et flAmount valide sont requis' }, { status: 400 })
     }
 
-    // Trouver le pack correspondant en base
-    const packInfo = await prisma.packConfig.findFirst({
-      where: { currency: 'FL', amount: flAmount, isActive: true }
-    })
-    if (!packInfo) {
-      return NextResponse.json(
-        { error: `Pack invalide ou inactif.` },
-        { status: 400 }
-      )
+    // Récupérer la config globale FoneLove pour le prix unitaire
+    let config = await prisma.foneLoveConfig.findFirst()
+    if (!config) {
+      config = await prisma.foneLoveConfig.create({ data: {} })
     }
-    const amountXAF = packInfo.priceXaf ? Number(packInfo.priceXaf) : 0;
+
+    const unitPriceEur = config.unitPriceEur ?? 0.50
+    const priceEur = flAmount * unitPriceEur
+
+    // Convertir en XAF (taux fixe 655.96) et appliquer l'arrondi psychologique comme sur le front-end
+    const rawXaf = priceEur * 655.96
+    const amountXAF = Math.round(applyPsychologicalRounding(rawXaf, getRoundingMode('XAF')))
+
     if (amountXAF <= 0) {
       return NextResponse.json(
-        { error: `Le prix du pack n'est pas défini correctement.` },
+        { error: `Le prix calculé n'est pas valide.` },
         { status: 400 }
       )
     }
@@ -47,11 +48,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Utilisateur introuvable' }, { status: 404 })
     }
 
+    const packKey = `FL_${flAmount}`
+    const packLabel = `${flAmount} FoneLove`
+
     // Anti-spam : vérifier commande récente (2 min)
     const recentOrder = await prisma.paymentOrder.findFirst({
       where: {
         userId,
-        packType: packInfo.packKey,
+        packType: packKey,
         status: 'pending',
         createdAt: { gte: new Date(Date.now() - 2 * 60 * 1000) },
       },
@@ -62,7 +66,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({
         orderId: recentOrder.id,
         paymentUrl: recentOrder.paymentUrl,
-        flAmount: packInfo.amount,
+        flAmount: flAmount,
         amountXAF: amountXAF,
       })
     }
@@ -73,7 +77,7 @@ export async function POST(req: NextRequest) {
     const order = await prisma.paymentOrder.create({
       data: {
         userId,
-        packType: packInfo.packKey,
+        packType: packKey,
         amountXAF: amountXAF,
         ccAmount: 0,       // Pas de CC — c'est du FoneLove
         bonusCC: 0,
@@ -83,8 +87,8 @@ export async function POST(req: NextRequest) {
         customerEmail: user.email,
         metadata: JSON.stringify({
           type: 'fonelove_recharge',
-          flAmount: packInfo.amount,
-          packLabel: packInfo.name,
+          flAmount: flAmount,
+          packLabel: packLabel,
         }),
       },
     })
@@ -93,7 +97,7 @@ export async function POST(req: NextRequest) {
     try {
       const coolpayResponse = await createPaylink({
         amountXAF: amountXAF,
-        reason: `FoneLove - ${packInfo.name}`,
+        reason: `FoneLove - ${packLabel}`,
         appTransactionRef,
         customerName: user.firstName,
         customerPhone: user.phone || undefined,
@@ -113,7 +117,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({
         orderId: order.id,
         paymentUrl: coolpayResponse.payment_url,
-        flAmount: packInfo.amount,
+        flAmount: flAmount,
         amountXAF: amountXAF,
       })
     } catch (coolpayError) {
