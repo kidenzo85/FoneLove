@@ -3,33 +3,10 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { usePremiumFeatures, type ActiveFeature } from '@/lib/premium-features-store'
-import { Flame, Ghost, Eye, X } from 'lucide-react'
+import { X } from 'lucide-react'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Progress } from '@/components/ui/progress'
-
-const FEATURE_MAP: Record<string, { icon: React.ReactNode; label: string; desc: string; color: string; bg: string }> = {
-  boost: { 
-    icon: <Flame className="size-6" />, 
-    label: 'Super Visibilité', 
-    desc: 'Ton profil passe en premier', 
-    color: 'text-orange-500',
-    bg: 'bg-orange-500/10'
-  },
-  incognito: { 
-    icon: <Ghost className="size-6" />, 
-    label: 'Mode Fantôme', 
-    desc: 'Personne ne te voit visiter', 
-    color: 'text-purple-400',
-    bg: 'bg-purple-500/10'
-  },
-  see_visitors: { 
-    icon: <Eye className="size-6" />, 
-    label: 'Vue Visiteurs', 
-    desc: 'Tu vois qui visite ton profil', 
-    color: 'text-cyan-400',
-    bg: 'bg-cyan-500/10'
-  }
-}
+import { getFeatureConfig, formatTimeRemaining, calculateProgress } from '@/lib/premium-ui'
 
 export default function ActiveFeaturesSheet({ open, onOpenChange }: { open: boolean, onOpenChange: (o: boolean) => void }) {
   const { activeFeatures } = usePremiumFeatures()
@@ -42,7 +19,11 @@ export default function ActiveFeaturesSheet({ open, onOpenChange }: { open: bool
     return () => clearInterval(interval)
   }, [open])
 
-  const currentFeatures = activeFeatures.filter(f => !f.isConsumed && new Date(f.expiresAt).getTime() > now)
+  const currentFeatures = activeFeatures.filter(f => 
+    !f.isConsumed && 
+    f.action !== 'undo_pass' &&
+    new Date(f.expiresAt).getTime() > now
+  )
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -66,27 +47,13 @@ export default function ActiveFeaturesSheet({ open, onOpenChange }: { open: bool
             </div>
           ) : (
             currentFeatures.map(feature => {
-              const config = FEATURE_MAP[feature.action] || { 
-                icon: <Flame className="size-6" />, 
-                label: 'Avantage actif', 
-                desc: 'Profites-en !',
-                color: 'text-primary',
-                bg: 'bg-primary/10'
-              }
+              const config = getFeatureConfig(feature.action)
               
-              const start = new Date(feature.activatedAt).getTime()
-              const end = new Date(feature.expiresAt).getTime()
-              const totalDuration = end - start
-              const remainingMs = Math.max(0, end - now)
+              const remainingMs = Math.max(0, new Date(feature.expiresAt).getTime() - now)
+              const { text: timeText, isExpiring } = formatTimeRemaining(remainingMs)
               
               // Calculate progress percentage (0 to 100)
-              const progressPct = Math.min(100, Math.max(0, 100 - (remainingMs / totalDuration) * 100))
-
-              const minutes = Math.floor(remainingMs / 60000)
-              const seconds = Math.floor((remainingMs % 60000) / 1000)
-              const timeText = minutes > 60 
-                ? `${Math.floor(minutes / 60)}h ${minutes % 60}m`
-                : `${minutes}m ${seconds.toString().padStart(2, '0')}s`
+              const progressPct = calculateProgress(feature.activatedAt, feature.expiresAt, now)
 
               return (
                 <motion.div 
@@ -103,14 +70,14 @@ export default function ActiveFeaturesSheet({ open, onOpenChange }: { open: bool
                     </div>
                     <div className="flex-1">
                       <h4 className="font-bold text-base text-white leading-tight">{config.label}</h4>
-                      <p className="text-xs text-white/50 mt-0.5">{config.desc}</p>
+                      <p className="text-xs text-white/50 mt-0.5">{config.shortLabel}</p>
                     </div>
                   </div>
 
                   <div className="ml-2 mt-4 space-y-1.5">
                     <div className="flex items-center justify-between text-xs">
                       <span className="text-white/40 font-medium">Temps restant</span>
-                      <span className="font-bold text-white font-mono bg-black/40 px-2 py-0.5 rounded-md">
+                      <span className={`font-bold font-mono px-2 py-0.5 rounded-md ${isExpiring ? 'bg-red-500/20 text-red-400' : 'bg-black/40 text-white'}`}>
                         {timeText}
                       </span>
                     </div>

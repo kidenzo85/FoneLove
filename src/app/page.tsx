@@ -64,6 +64,7 @@ import { NotificationCenter } from '@/components/NotificationCenter'
 import { NotificationSettingsSheet } from '@/components/NotificationSettingsSheet'
 import ActiveFeaturesPill from '@/components/ActiveFeaturesPill'
 import ActiveFeaturesSheet from '@/components/ActiveFeaturesSheet'
+import { getFeatureConfig } from '@/lib/premium-ui'
 
 
 // ======== Login Screen — Now just renders Landing with inline auth ========
@@ -839,16 +840,42 @@ function ProfileTab({ onOpenAdmin }: { onOpenAdmin: () => void }) {
           </Button>
         </div>
 
-        {/* Active Features Button */}
+        {/* Active Features Section */}
         {currentActiveFeatures.length > 0 && (
-          <motion.div whileTap={{ scale: 0.98 }}>
-            <Button
-              onClick={() => setShowActiveFeaturesSheet(true)}
-              className="w-full h-12 rounded-2xl bg-gradient-to-r from-primary/10 to-pink-500/10 text-primary font-bold border border-primary/20 hover:bg-primary/20"
-            >
-              ✨ {currentActiveFeatures.length} avantage{currentActiveFeatures.length > 1 ? 's' : ''} en cours
-            </Button>
-          </motion.div>
+          <div className="space-y-3 pt-2">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-widest px-1">Tes Avantages Actifs</h3>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="h-8 text-xs text-primary"
+                onClick={() => setShowActiveFeaturesSheet(true)}
+              >
+                Gérer
+              </Button>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {currentActiveFeatures.map(feature => {
+                const config = getFeatureConfig(feature.action)
+                return (
+                  <motion.div 
+                    key={feature.id}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setShowActiveFeaturesSheet(true)}
+                    className={cn("flex items-center gap-2.5 p-3 rounded-xl border relative overflow-hidden cursor-pointer", config.bg, "border-white/5")}
+                  >
+                    <div className={cn("absolute inset-0 bg-gradient-to-r opacity-20", config.gradient)} />
+                    <div className={cn("relative z-10 shrink-0", config.color)}>
+                      {config.icon}
+                    </div>
+                    <div className="relative z-10 flex-1 min-w-0">
+                      <p className="text-xs font-bold text-foreground truncate">{config.shortLabel}</p>
+                    </div>
+                  </motion.div>
+                )
+              })}
+            </div>
+          </div>
         )}
 
         <NotificationSubscribeCard />
