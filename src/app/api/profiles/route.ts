@@ -47,15 +47,7 @@ export async function GET(req: NextRequest) {
         },
         ...(userId ? {
           NOT: [
-            { id: userId },
-            {
-              receivedRequests: {
-                some: {
-                  senderId: userId,
-                  status: 'accepted'
-                }
-              }
-            }
+            { id: userId }
           ]
         } : {}),
       },

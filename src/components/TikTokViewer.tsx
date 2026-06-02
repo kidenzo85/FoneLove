@@ -675,6 +675,8 @@ function ProfileInfoOverlay({ profile, onView }: { profile: ProfileWithDetails; 
               "flex items-center gap-2.5 rounded-xl px-3 py-2 mt-2 backdrop-blur-sm border",
               profile.requestStatus === 'pending'
                 ? "bg-amber-500/20 border-amber-500/30 text-amber-300"
+                : profile.requestStatus === 'accepted'
+                ? "bg-green-500/20 border-green-500/30 text-green-300"
                 : "bg-red-500/20 border-red-500/30 text-red-300"
             )}
             {...stagger(0.6)}
@@ -685,6 +687,14 @@ function ProfileInfoOverlay({ profile, onView }: { profile: ProfileWithDetails; 
                 <div className="text-left">
                   <p className="font-bold text-xs">📱 Demande envoyée</p>
                   <p className="text-[10px] opacity-80 leading-tight">Tu as demandé son numéro. En attente de réponse.</p>
+                </div>
+              </>
+            ) : profile.requestStatus === 'accepted' ? (
+              <>
+                <MessageCircle className="size-4 shrink-0 text-green-400" />
+                <div className="text-left">
+                  <p className="font-bold text-xs">💬 Connectés</p>
+                  <p className="text-[10px] opacity-80 leading-tight">Demande acceptée ! Vous pouvez discuter.</p>
                 </div>
               </>
             ) : (
@@ -805,6 +815,8 @@ function SideActionBar({
               ? "bg-amber-500 border border-amber-400"
               : profile.requestStatus === 'declined'
               ? "bg-neutral-600 border border-neutral-500"
+              : profile.requestStatus === 'accepted'
+              ? "bg-green-500 border border-green-400"
               : ""
           )}
           style={profile.requestStatus && profile.requestStatus !== 'none' ? {} : { background: 'linear-gradient(135deg, #ec4899, #f43f5e, #f59e0b)' }}
@@ -820,6 +832,8 @@ function SideActionBar({
             <ClockIcon className="size-6 text-white relative z-10 animate-pulse" />
           ) : profile.requestStatus === 'declined' ? (
             <XCircle className="size-6 text-white relative z-10" />
+          ) : profile.requestStatus === 'accepted' ? (
+            <MessageCircle className="size-6 text-white relative z-10" />
           ) : (
             <Phone className="size-6 text-white relative z-10" />
           )}
@@ -834,6 +848,8 @@ function SideActionBar({
             ? 'En attente'
             : profile.requestStatus === 'declined'
             ? 'Refusé'
+            : profile.requestStatus === 'accepted'
+            ? 'Connectés'
             : requestCount > 0
             ? requestCount
             : t('tiktok.number')}

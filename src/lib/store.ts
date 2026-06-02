@@ -1,7 +1,7 @@
 'use client'
 
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { persist, createJSONStorage } from 'zustand/middleware'
 
 export type TabType = 'discover' | 'requests' | 'messages' | 'connections' | 'profile'
 
@@ -342,6 +342,7 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: 'fonelove-storage',
+      storage: typeof window !== 'undefined' ? createJSONStorage(() => window.localStorage) : undefined,
       partialize: (state) => ({
         config: state.config,
         currentUser: state.currentUser,

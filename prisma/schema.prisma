@@ -602,3 +602,23 @@ model AnalyticsEvent {
   @@schema("public")
 }
 
+// ===== Global App Configuration (Admin-controlled) =====
+
+model GlobalConfig {
+  id                       String   @id @default("global")
+  appName                  String   @default("Fonelove")
+  appDesc                  String   @default("La dating app où le numéro est la destination")
+  contactEmail             String   @default("support@connectphone.fr")
+  openSignups              Boolean  @default(true)
+  requirePhoneVerification Boolean  @default(false)
+  preNumberLimit           String   @default("3")
+  momentsDuration          String   @default("24")
+  boostsDuration           String   @default("30")
+  emailNotif               Boolean  @default(true)
+  pushNotif                Boolean  @default(true)
+  reportNotif              Boolean  @default(true)
+  updatedAt                DateTime @updatedAt
+  
+  @@schema("public")
+}
+

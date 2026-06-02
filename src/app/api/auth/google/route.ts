@@ -16,11 +16,20 @@ export async function POST(req: NextRequest) {
     }
 
     console.log('Google Auth: Verifying token...')
-    // Verify the Google JWT token
-    const ticket = await client.verifyIdToken({
-      idToken: credential,
-      audience: process.env.GOOGLE_CLIENT_ID,
-    })
+    // Verify the Google JWT token (with retry for Node.js fetch DNS bug)
+    let ticket;
+    try {
+      ticket = await client.verifyIdToken({
+        idToken: credential,
+        audience: process.env.GOOGLE_CLIENT_ID,
+      })
+    } catch (verifyError: any) {
+      console.log('Google Auth: Retry verification due to error:', verifyError?.message)
+      ticket = await client.verifyIdToken({
+        idToken: credential,
+        audience: process.env.GOOGLE_CLIENT_ID,
+      })
+    }
 
     const payload = ticket.getPayload()
     if (!payload || !payload.email) {

@@ -79,6 +79,7 @@ interface CurrencyState {
 
   // Utility
   formatLocalPrice: (eurAmount: number) => string
+  formatExactLocalPrice: (eurAmount: number) => string
   convertEurToLocal: (eurAmount: number) => number
   getCurrencyInfo: () => CurrencyInfo
   formatCCEquivalent: (ccAmount: number) => string
@@ -241,6 +242,12 @@ export const useCurrencyStore = create<CurrencyState>()(
         const mode = getRoundingMode(currencyCode)
         const rounded = applyPsychologicalRounding(converted, mode)
         return formatCurrency(rounded, currencyCode, { skipRounding: true })
+      },
+
+      formatExactLocalPrice: (eurAmount: number) => {
+        const { currencyCode, exchangeRate, countryCode } = get()
+        const converted = convertFromEUR(eurAmount, exchangeRate, countryCode)
+        return formatCurrency(converted, currencyCode, { skipRounding: true })
       },
 
       convertEurToLocal: (eurAmount: number) => {

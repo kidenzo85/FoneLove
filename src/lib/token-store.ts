@@ -17,11 +17,33 @@ interface RedeemToken {
   used: boolean
 }
 
+interface OtpEntry {
+  otp: string
+  expiresAt: number
+  attempts: number
+  lastRequestAt: number
+}
+
+const globalForTokens = globalThis as unknown as {
+  magicTokens: Map<string, MagicToken>
+  redeemTokens: Map<string, RedeemToken>
+  otpStore: Map<string, OtpEntry>
+}
+
 // Magic link tokens: token → { email, expiresAt, used }
-const magicTokens = new Map<string, MagicToken>()
+const magicTokens = globalForTokens.magicTokens ?? new Map<string, MagicToken>()
 
 // Redeem codes: code → { userId, email, expiresAt, used }
-const redeemTokens = new Map<string, RedeemToken>()
+const redeemTokens = globalForTokens.redeemTokens ?? new Map<string, RedeemToken>()
+
+// OTP Codes: email -> OtpEntry
+const otpStore = globalForTokens.otpStore ?? new Map<string, OtpEntry>()
+
+if (process.env.NODE_ENV !== 'production') {
+  globalForTokens.magicTokens = magicTokens
+  globalForTokens.redeemTokens = redeemTokens
+  globalForTokens.otpStore = otpStore
+}
 
 // Cleanup expired tokens every 5 minutes
 if (typeof setInterval !== 'undefined') {
@@ -87,14 +109,7 @@ export function verifyRedeemToken(code: string): { valid: boolean; userId?: stri
 
 // === OTP Codes ===
 
-interface OtpEntry {
-  otp: string
-  expiresAt: number
-  attempts: number
-  lastRequestAt: number
-}
-
-const otpStore = new Map<string, OtpEntry>()
+// Note: OtpEntry interface and otpStore instantiation were moved to the top of the file to use globalThis.
 
 export function storeOtp(email: string, otp: string): void {
   otpStore.set(email, {

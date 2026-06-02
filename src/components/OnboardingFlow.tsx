@@ -67,8 +67,8 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
     lookingFor: 'relation',
     city: '',
     cityData: null as WorldCity | null,
-    countryCode: 'FR',
-    phoneCountryCode: '+33',
+    countryCode: 'CM',
+    phoneCountryCode: '+237',
     phoneLocal: '',
     photos: [] as string[],
     bio: '',
@@ -131,7 +131,7 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
         const country = getCountryByCode(code)
         if (country) {
           setFormData(prev => {
-            if (prev.countryCode === 'FR' && prev.phoneCountryCode === '+33' && !prev.phoneLocal) {
+            if (prev.countryCode === 'CM' && prev.phoneCountryCode === '+237' && !prev.phoneLocal) {
               return {
                 ...prev,
                 countryCode: code,

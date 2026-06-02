@@ -2007,12 +2007,12 @@ function AppContent() {
   }
 
   // Auth flow (manual login if auto-login failed)
-  if (!isAuthenticated && !onboardingDone) {
+  if (!isAuthenticated) {
     return <LoginScreen onLogin={handleLogin} />
   }
 
   // Onboarding
-  if (isAuthenticated && !onboardingDone) {
+  if (!onboardingDone) {
     return <OnboardingFlow onComplete={handleOnboardingComplete} />
   }
 

@@ -20,10 +20,20 @@ export async function GET(req: NextRequest) {
 
     const foneLoveConfig = await prisma.foneLoveConfig.findFirst()
     
+    // Fetch GlobalConfig
+    let globalConfig = await prisma.globalConfig.findUnique({ where: { id: 'global' } })
+    
+    // Create default if it doesn't exist
+    if (!globalConfig) {
+      globalConfig = await prisma.globalConfig.create({
+        data: { id: 'global' }
+      })
+    }
+    
     // We can also fetch gamification challenges or anything else if needed
     // For now we'll just return foneLoveConfig 
 
-    return NextResponse.json({ config: foneLoveConfig })
+    return NextResponse.json({ config: foneLoveConfig, globalConfig })
   } catch (error) {
     return NextResponse.json({ error: 'Erreur serveur', details: (error as Error).message }, { status: 500 })
   }
@@ -45,7 +55,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Accès interdit. Réservé aux administrateurs.' }, { status: 403 })
     }
 
-    // Process configData... (For now we just mock success)
+    // Update GlobalConfig
+    if (configData) {
+      const existing = await prisma.globalConfig.findUnique({ where: { id: 'global' } })
+      if (!existing) {
+        await prisma.globalConfig.create({
+          data: {
+            id: 'global',
+            ...configData
+          }
+        })
+      } else {
+        await prisma.globalConfig.update({
+          where: { id: 'global' },
+          data: {
+            ...configData
+          }
+        })
+      }
+    }
 
     return NextResponse.json({ success: true })
   } catch (error) {

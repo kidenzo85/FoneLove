@@ -1,6 +1,6 @@
 'use client'
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { persist, createJSONStorage } from 'zustand/middleware'
 
 // Types
 export type LevelName = 'Bronze' | 'Argent' | 'Or' | 'Platine' | 'Diamant'
@@ -567,6 +567,7 @@ export const useConnectCoinStore = create<ConnectCoinState>()(
     }),
     {
       name: 'connectcoin-storage',
+      storage: typeof window !== 'undefined' ? createJSONStorage(() => window.localStorage) : undefined,
       partialize: (state) => ({
         balance: state.balance,
         totalEarned: state.totalEarned,

@@ -18,6 +18,7 @@ export default function FoneLoveWallet() {
     config, transactions, gifts, orders, fetchWallet, fetchConfig, fetchHistory, rechargeWallet, requestWithdraw } = useFoneLoveStore()
   const currentUser = useAppStore((s) => s.currentUser)
   const formatLocalPrice = useCurrencyStore((s) => s.formatLocalPrice)
+  const formatExactLocalPrice = useCurrencyStore((s) => s.formatExactLocalPrice)
   const rawPacks = useCurrencyStore((s) => s.rawPacks)
 
 
@@ -309,16 +310,16 @@ export default function FoneLoveWallet() {
 
               {/* Breakdown */}
               <div className="rounded-xl bg-muted/10 border border-border/20 p-3 space-y-2 text-sm">
-                <div className="flex justify-between"><span className="text-muted-foreground">Valeur brute</span><span>{formatLocalPrice(withdrawAmount * withdrawValue)}</span></div>
-                <div className="flex justify-between"><span className="text-red-400">Commission ({commission}%)</span><span className="text-red-400">-{formatLocalPrice(withdrawAmount * withdrawValue * commission / 100)}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Valeur brute</span><span>{formatExactLocalPrice(withdrawAmount * withdrawValue)}</span></div>
+                <div className="flex justify-between"><span className="text-red-400">Commission ({commission}%)</span><span className="text-red-400">-{formatExactLocalPrice(withdrawAmount * withdrawValue * commission / 100)}</span></div>
                 <div className="h-px bg-border/20" />
-                <div className="flex justify-between font-bold"><span>Tu reçois</span><span className="text-green-400">{formatLocalPrice(netPayout)}</span></div>
+                <div className="flex justify-between font-bold"><span>Tu reçois</span><span className="text-green-400">{formatExactLocalPrice(netPayout)}</span></div>
               </div>
 
               <Button className="w-full h-14 rounded-2xl text-base font-bold text-white border-0"
                 style={{ background: sendBalance < (config?.minWithdrawAmount ?? 10) ? '#666' : 'linear-gradient(135deg, #f59e0b, #eab308)' }}
                 onClick={handleWithdraw} disabled={processing || sendBalance < (config?.minWithdrawAmount ?? 10) || withdrawAmount > sendBalance}>
-                {processing ? 'Traitement...' : `Retirer ${formatLocalPrice(netPayout)}`}
+                {processing ? 'Traitement...' : `Retirer ${formatExactLocalPrice(netPayout)}`}
               </Button>
 
               {sendBalance < (config?.minWithdrawAmount ?? 10) && (

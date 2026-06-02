@@ -1764,16 +1764,36 @@ function SettingsPage({ currentUserId }: { currentUserId: string }) {
   const [openSignups, setOpenSignups] = useState(true)
   const [preNumberLimit, setPreNumberLimit] = useState('3')
   const [momentsDuration, setMomentsDuration] = useState('24')
-  const [adminSecretInput, setAdminSecretInput] = useState('')
-
-  useEffect(() => {
-    setAdminSecretInput(localStorage.getItem('adminSecret') || '')
-  }, [])
-
   const [boostsDuration, setBoostsDuration] = useState('30')
   const [emailNotif, setEmailNotif] = useState(true)
   const [pushNotif, setPushNotif] = useState(true)
   const [reportNotif, setReportNotif] = useState(true)
+  const [adminSecretInput, setAdminSecretInput] = useState('')
+
+  useEffect(() => {
+    setAdminSecretInput(localStorage.getItem('adminSecret') || '')
+    // Charger les paramètres depuis le backend
+    fetch('/api/admin/config', {
+      headers: { 'x-admin-secret': localStorage.getItem('adminSecret') || '' }
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.globalConfig) {
+          const cfg = data.globalConfig;
+          if (cfg.appName) setAppName(cfg.appName);
+          if (cfg.appDesc) setAppDesc(cfg.appDesc);
+          if (cfg.contactEmail) setContactEmail(cfg.contactEmail);
+          if (cfg.openSignups !== undefined) setOpenSignups(cfg.openSignups);
+          if (cfg.preNumberLimit) setPreNumberLimit(cfg.preNumberLimit);
+          if (cfg.momentsDuration) setMomentsDuration(cfg.momentsDuration);
+          if (cfg.boostsDuration) setBoostsDuration(cfg.boostsDuration);
+          if (cfg.emailNotif !== undefined) setEmailNotif(cfg.emailNotif);
+          if (cfg.pushNotif !== undefined) setPushNotif(cfg.pushNotif);
+          if (cfg.reportNotif !== undefined) setReportNotif(cfg.reportNotif);
+        }
+      })
+      .catch(console.error);
+  }, [])
 
   // FoneLove Config
   const [flUnitPrice, setFlUnitPrice] = useState('0.50')
@@ -1812,11 +1832,17 @@ function SettingsPage({ currentUserId }: { currentUserId: string }) {
             openSignups,
             preNumberLimit,
             momentsDuration,
+            boostsDuration,
+            emailNotif,
+            pushNotif,
+            reportNotif,
             requirePhoneVerification: config.requirePhoneVerification
           }
         })
       });
-      if (res.ok) alert('Configuration sauvegardée avec succès');
+      if (res.ok) {
+        alert('Configuration sauvegardée avec succès')
+      }
       else alert('Erreur lors de la sauvegarde');
     } catch (e) {
       alert('Erreur réseau');
