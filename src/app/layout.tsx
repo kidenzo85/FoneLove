@@ -54,7 +54,7 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  let globalConfig = null;
+  let globalConfig: any = null;
   try {
     globalConfig = await prisma.globalConfig.findUnique({ where: { id: 'global' } });
   } catch (error) {

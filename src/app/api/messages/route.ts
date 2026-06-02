@@ -152,17 +152,30 @@ export async function GET(req: NextRequest) {
     }
 
     const conversations: any[] = []
+    
+    // Optimisation: Fetch all messages for this user in a single query to avoid N+1 and connection exhaustion
+    const allMessages = await prisma.message.findMany({
+      where: {
+        OR: [
+          { senderId: userId },
+          { receiverId: userId }
+        ]
+      },
+      orderBy: { createdAt: 'asc' },
+    })
+
+    // Group messages by other user id
+    const messagesByOtherUser = new Map()
+    for (const msg of allMessages) {
+      const otherId = msg.senderId === userId ? msg.receiverId : msg.senderId
+      if (!messagesByOtherUser.has(otherId)) {
+        messagesByOtherUser.set(otherId, [])
+      }
+      messagesByOtherUser.get(otherId).push(msg)
+    }
+
     for (const [otherUserId, data] of conversationMap.entries()) {
-      // Fetch all messages between these two users
-      const messages = await prisma.message.findMany({
-        where: {
-          OR: [
-            { senderId: userId, receiverId: otherUserId },
-            { senderId: otherUserId, receiverId: userId }
-          ]
-        },
-        orderBy: { createdAt: 'asc' },
-      })
+      const messages = messagesByOtherUser.get(otherUserId) || []
 
       const otherUser = data.otherUser
 
@@ -176,7 +189,7 @@ export async function GET(req: NextRequest) {
           bio: otherUser.bio,
           mood: otherUser.mood,
         },
-        messages: messages.map((m) => ({
+        messages: messages.map((m: any) => ({
           id: m.id,
           senderId: m.senderId,
           receiverId: m.receiverId,
