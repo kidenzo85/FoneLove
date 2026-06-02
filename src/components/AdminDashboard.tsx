@@ -1768,6 +1768,8 @@ function SettingsPage({ currentUserId }: { currentUserId: string }) {
   const [emailNotif, setEmailNotif] = useState(true)
   const [pushNotif, setPushNotif] = useState(true)
   const [reportNotif, setReportNotif] = useState(true)
+  const [facebookPixelId, setFacebookPixelId] = useState('')
+  const [tiktokPixelId, setTiktokPixelId] = useState('')
   const [adminSecretInput, setAdminSecretInput] = useState('')
 
   useEffect(() => {
@@ -1790,6 +1792,8 @@ function SettingsPage({ currentUserId }: { currentUserId: string }) {
           if (cfg.emailNotif !== undefined) setEmailNotif(cfg.emailNotif);
           if (cfg.pushNotif !== undefined) setPushNotif(cfg.pushNotif);
           if (cfg.reportNotif !== undefined) setReportNotif(cfg.reportNotif);
+          if (cfg.facebookPixelId !== null && cfg.facebookPixelId !== undefined) setFacebookPixelId(cfg.facebookPixelId);
+          if (cfg.tiktokPixelId !== null && cfg.tiktokPixelId !== undefined) setTiktokPixelId(cfg.tiktokPixelId);
         }
       })
       .catch(console.error);
@@ -1836,6 +1840,8 @@ function SettingsPage({ currentUserId }: { currentUserId: string }) {
             emailNotif,
             pushNotif,
             reportNotif,
+            facebookPixelId,
+            tiktokPixelId,
             requirePhoneVerification: config.requirePhoneVerification
           }
         })
@@ -1914,6 +1920,18 @@ function SettingsPage({ currentUserId }: { currentUserId: string }) {
             <Label htmlFor="contactEmail">Email de contact</Label>
             <Input id="contactEmail" type="email" value={contactEmail} onChange={e => setContactEmail(e.target.value)} />
           </div>
+          
+          <Separator />
+          
+          <div className="space-y-2">
+            <Label htmlFor="facebookPixelId" className="flex items-center gap-2">Pixel Facebook (ID)</Label>
+            <Input id="facebookPixelId" placeholder="ex: 123456789012345" value={facebookPixelId} onChange={e => setFacebookPixelId(e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="tiktokPixelId" className="flex items-center gap-2">Pixel TikTok (ID)</Label>
+            <Input id="tiktokPixelId" placeholder="ex: C1234567890ABCDEF" value={tiktokPixelId} onChange={e => setTiktokPixelId(e.target.value)} />
+          </div>
+
           <Button onClick={handleSaveSettings} className="bg-rose-600 hover:bg-rose-700">Sauvegarder</Button>
         </CardContent>
       </Card>

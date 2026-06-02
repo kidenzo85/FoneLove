@@ -617,6 +617,8 @@ model GlobalConfig {
   emailNotif               Boolean  @default(true)
   pushNotif                Boolean  @default(true)
   reportNotif              Boolean  @default(true)
+  facebookPixelId          String?
+  tiktokPixelId            String?
   updatedAt                DateTime @updatedAt
   
   @@schema("public")
