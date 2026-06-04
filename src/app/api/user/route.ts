@@ -55,3 +55,26 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
   }
 }
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url)
+    const userId = searchParams.get('userId')
+
+    if (!userId) {
+      return NextResponse.json({ error: 'userId requis' }, { status: 400 })
+    }
+
+    // Delete user from Prisma.
+    // Thanks to onDelete: Cascade on all relations in Prisma schema,
+    // this will cleanly remove all associated user data (Profile, Photos, Messages, etc).
+    await prisma.user.delete({
+      where: { id: userId }
+    })
+
+    return NextResponse.json({ success: true, message: 'Compte supprimé avec succès' })
+  } catch (error) {
+    console.error('Account deletion error:', error)
+    return NextResponse.json({ error: 'Erreur lors de la suppression du compte' }, { status: 500 })
+  }
+}

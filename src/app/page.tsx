@@ -6,13 +6,13 @@ import {
   Heart, Phone, MessageCircle, Users, SlidersHorizontal,
   LayoutGrid, Columns, Sparkles, RefreshCw, LogOut, Eye,
   Shield, Moon, Sun, Volume2, VolumeX, Pause, Play,
-  ChevronRight, MapPin, X, Camera, MessageSquare, Bell
+  ChevronRight, MapPin, X, Camera, MessageSquare, Bell, Trash2
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
 import { Separator } from '@/components/ui/separator'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import {
   useAppStore,
   type ProfileWithDetails,
@@ -49,6 +49,7 @@ import StreakWidget from '@/components/StreakWidget'
 import LandingPage from '@/components/LandingPage'
 import ChallengeWidget from '@/components/ChallengeWidget'
 import { useConnectCoinStore } from '@/lib/connectcoin-store'
+import { useCurrencyStore } from '@/lib/currency-store'
 import { playSound } from '@/lib/sounds'
 import { usePremiumFeatures } from '@/lib/premium-features-store'
 import ProfileEditor from '@/components/ProfileEditor'
@@ -683,12 +684,17 @@ function ProfileTab({ onOpenAdmin }: { onOpenAdmin: () => void }) {
   const { trigger } = useFeedback()
   const { hasActiveFeature, fetchActiveFeatures, activeFeatures } = usePremiumFeatures()
   const canSeeVisitors = hasActiveFeature('see_visitors')
-  const { setShowInsufficientBalance, spendCredits, fetchBalance, balance } = useConnectCoinStore()
+  const { setShowInsufficientBalance, spendCredits, fetchBalance, balance, setShowCreditStore, setSelectedPackType } = useConnectCoinStore()
   const ccLevel = useConnectCoinStore((s) => s.level)
   const storeStreak = useConnectCoinStore((s) => s.streak)
   const displayStreakDays = storeStreak?.currentStreak ?? currentUser?.streakDays ?? 0
   const [showVisitors, setShowVisitors] = useState(false)
   const [showPoster, setShowPoster] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [visitorUpsellState, setVisitorUpsellState] = useState<'teaser' | 'confirm'>('teaser')
+  const [isActivatingVisitor, setIsActivatingVisitor] = useState(false)
+  const { packPrices } = useCurrencyStore()
   const [darkMode, setDarkMode] = useState(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('fonelove-dark-mode')
@@ -1050,7 +1056,13 @@ function ProfileTab({ onOpenAdmin }: { onOpenAdmin: () => void }) {
             <div className="flex items-center gap-2">
               <Eye className="size-4 text-primary" />
               <span className="text-sm font-semibold">{t('profile.visitors')}</span>
-              <Badge variant="secondary" className="text-[10px]">{profileVisits.length}</Badge>
+              {canSeeVisitors ? (
+                <Badge variant="secondary" className="text-[10px]">{profileVisits.length}</Badge>
+              ) : (
+                <Badge variant="outline" className="text-[10px] bg-amber-500/10 text-amber-500 border-amber-500/20 font-black tracking-wide flex items-center gap-1">
+                  🔒 3 CC <span className="opacity-60 font-medium">/ 24h</span>
+                </Badge>
+              )}
             </div>
             <ChevronRight className={cn('size-4 text-muted-foreground transition-transform', showVisitors && 'rotate-90')} />
           </button>
@@ -1062,63 +1074,188 @@ function ProfileTab({ onOpenAdmin }: { onOpenAdmin: () => void }) {
                 exit={{ height: 0, opacity: 0 }}
                 className="overflow-hidden"
               >
-                <div className="mt-3 space-y-2 relative">
-                  {profileVisits.length === 0 ? (
+                <div className="mt-3 space-y-2 relative min-h-[100px]">
+                  {profileVisits.length === 0 && canSeeVisitors ? (
                     <p className="text-xs text-muted-foreground">{t('profile.noVisits')}</p>
                   ) : (
                     <div className={cn(
                       "space-y-2",
                       !canSeeVisitors && "filter blur-sm select-none pointer-events-none opacity-50"
                     )}>
-                      {profileVisits.map((visitor, idx) => {
-                        const vPhoto = visitor.photos?.[0]?.url || `https://i.pravatar.cc/40?img=${idx + 1}`
-                        return (
-                          <motion.div
-                            key={visitor.id}
-                            initial={{ opacity: 0, x: -10 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            className="flex items-center gap-2"
-                          >
-                            <img src={vPhoto} alt="" className="h-8 w-8 rounded-full object-cover" />
-                            <span className="text-sm">{visitor.firstName}</span>
-                          </motion.div>
-                        )
-                      })}
+                      {profileVisits.length === 0 && !canSeeVisitors ? (
+                        /* Dummy profiles to blur if they have 0 real visitors */
+                        [1, 2, 3].map((_, idx) => (
+                          <div key={idx} className="flex items-center gap-2 p-2 bg-card rounded-lg border border-white/5">
+                            <div className="h-10 w-10 rounded-full bg-muted animate-pulse" />
+                            <div className="space-y-1">
+                              <div className="h-3 w-20 bg-muted animate-pulse rounded" />
+                              <div className="h-2 w-12 bg-muted/60 animate-pulse rounded" />
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        profileVisits.map((visitor, idx) => {
+                          const vPhoto = visitor.photos?.[0]?.url || `https://i.pravatar.cc/40?img=${idx + 1}`
+                          const genderIcon = visitor.gender === 'male' ? '♂️' : visitor.gender === 'female' ? '♀️' : ''
+                          
+                          return (
+                            <button
+                              key={visitor.id}
+                              onClick={() => {
+                                if (canSeeVisitors) {
+                                  setSelectedUserId(visitor.id)
+                                }
+                              }}
+                              className={cn(
+                                "flex items-center gap-2 p-2 w-full text-left rounded-lg transition-colors border border-transparent",
+                                canSeeVisitors && "hover:bg-accent/50 hover:border-border/50"
+                              )}
+                            >
+                              <img
+                                src={vPhoto}
+                                alt={visitor.firstName || 'User'}
+                                className="h-10 w-10 rounded-full object-cover shadow-sm border border-border/50"
+                              />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between gap-1">
+                                  <p className="text-sm font-bold truncate">
+                                    {visitor.firstName} {genderIcon}
+                                  </p>
+                                </div>
+                                <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-muted-foreground">
+                                  {visitor.birthDate && <span>{Math.floor((Date.now() - new Date(visitor.birthDate).getTime()) / 31557600000)} ans</span>}
+                                  {visitor.city && (
+                                    <>
+                                      {visitor.birthDate && <span className="w-1 h-1 rounded-full bg-border" />}
+                                      <span className="truncate">{visitor.city}</span>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            </button>
+                          )
+                        })
+                      )}
                     </div>
                   )}
 
                   {/* See Visitors Premium Upsell */}
-                  {!canSeeVisitors && profileVisits.length > 0 && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-black/40 rounded-xl">
-                      <div className="bg-black/80 backdrop-blur-md p-4 rounded-xl border border-white/10 text-center max-w-[200px]">
-                        <Eye className="size-6 text-cyan-400 mx-auto mb-2" />
-                        <p className="text-[11px] text-white/90 font-bold mb-3 leading-tight">
-                          Découvre qui a visité ton profil
-                        </p>
-                        <Button
-                          size="sm"
-                          className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-bold h-8 text-[10px]"
-                          onClick={async () => {
-                            const cost = 3 // see_visitors cost
-                            if (balance < cost) {
-                              setShowInsufficientBalance({ action: 'see_visitors', cost })
-                              return
-                            }
-                            const success = await spendCredits(currentUser.id, 'see_visitors')
-                            if (success) {
-                              await fetchBalance(currentUser.id)
-                              await fetchActiveFeatures(currentUser.id)
-                              // Refresh visits (will now be unobfuscated)
-                              const res = await fetch(`/api/profile/visits?userId=${currentUser.id}`)
-                              const data = await res.json()
-                              if (data.visits) useAppStore.getState().setProfileVisits(data.visits)
-                            }
-                          }}
-                        >
-                          Débloquer (3 CC)
-                        </Button>
+                  {!canSeeVisitors && (
+                    visitorUpsellState === 'teaser' ? (
+                      <div 
+                        className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-black/40 backdrop-blur-[2px] rounded-xl cursor-pointer hover:bg-black/50 transition-all"
+                        onClick={() => setVisitorUpsellState('confirm')}
+                      >
+                        <div className="bg-black/80 backdrop-blur-md p-4 rounded-xl border border-white/10 text-center max-w-[220px] shadow-2xl">
+                          <Eye className="size-6 text-cyan-400 mx-auto mb-2" />
+                          <p className="text-[11px] text-white/90 font-bold leading-tight">
+                            Découvre qui a visité ton profil
+                          </p>
+                          <div className="mt-2 text-[9px] text-cyan-300 font-black uppercase tracking-wider bg-cyan-500/20 py-1 px-2 rounded-full inline-block">
+                            Pour 24 Heures
+                          </div>
+                          <div className="mt-3 flex items-center justify-center gap-1.5">
+                            <span className="text-[10px] text-white/50">Coût :</span>
+                            <span className="text-xs font-black text-amber-400">3 CC</span>
+                          </div>
+                        </div>
                       </div>
-                    </div>
+                    ) : (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center z-20 bg-slate-950/95 backdrop-blur-xl rounded-xl p-4 shadow-2xl border border-cyan-500/30 overflow-hidden">
+                        {/* Decorative background glow */}
+                        <div className="absolute top-0 left-0 w-32 h-32 bg-cyan-500/20 rounded-full blur-3xl pointer-events-none" />
+                        <div className="absolute bottom-0 right-0 w-32 h-32 bg-blue-600/20 rounded-full blur-3xl pointer-events-none" />
+
+                        <Eye className="size-8 text-cyan-400 mx-auto mb-2 relative z-10" />
+                        <h3 className="text-sm font-black text-white relative z-10 mb-1">Passer en mode VIP</h3>
+                        <p className="text-[10px] text-white/60 text-center mb-4 relative z-10">
+                          Voit tous tes visiteurs en illimité pendant 24 heures.
+                        </p>
+
+                        {balance >= 3 ? (
+                          <div className="w-full relative z-10 space-y-3">
+                            <div className="flex items-center justify-between text-[11px] bg-white/5 rounded-lg p-2 border border-white/10">
+                              <span className="text-white/60">Ton solde actuel</span>
+                              <span className="font-bold text-amber-400">{balance} CC</span>
+                            </div>
+                            <Button
+                              className="w-full h-10 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold text-xs shadow-lg shadow-cyan-500/20 relative overflow-hidden"
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                setIsActivatingVisitor(true)
+                                const success = await spendCredits(currentUser.id, 'see_visitors')
+                                if (success) {
+                                  await fetchBalance(currentUser.id)
+                                  await fetchActiveFeatures(currentUser.id)
+                                  const res = await fetch(`/api/profile/visits?userId=${currentUser.id}`)
+                                  const data = await res.json()
+                                  if (data.visits) useAppStore.getState().setProfileVisits(data.visits)
+                                }
+                                setIsActivatingVisitor(false)
+                                setVisitorUpsellState('teaser')
+                              }}
+                              disabled={isActivatingVisitor}
+                            >
+                              {isActivatingVisitor ? (
+                                <span className="animate-pulse">Activation...</span>
+                              ) : (
+                                <>Confirmer l'activation <span className="ml-1 opacity-80">(-3 CC)</span></>
+                              )}
+                            </Button>
+                            <button 
+                              className="w-full text-center text-[10px] text-white/40 hover:text-white pb-1"
+                              onClick={(e) => { e.stopPropagation(); setVisitorUpsellState('teaser'); }}
+                            >
+                              Annuler
+                            </button>
+                          </div>
+                        ) : (() => {
+                          const missing = 3 - balance;
+                          const sortedPacks = [...(packPrices || [])].sort((a, b) => a.rawLocalPrice - b.rawLocalPrice);
+                          const suggestedPack = sortedPacks.find(p => (p.cc + p.bonusCC) >= missing) || sortedPacks[sortedPacks.length - 1];
+                          
+                          return (
+                            <div className="w-full relative z-10 space-y-3">
+                              <div className="flex items-center justify-between text-[11px] bg-red-500/10 rounded-lg p-2 border border-red-500/20">
+                                <span className="text-red-300 font-medium">Solde insuffisant</span>
+                                <span className="font-bold text-red-400">{balance} / 3 CC</span>
+                              </div>
+                              
+                              {suggestedPack ? (
+                                <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 text-left">
+                                  <p className="text-[10px] text-white/60 mb-2 font-medium leading-tight">
+                                    Il te manque {missing} CC. Le pack <strong>{suggestedPack.name}</strong> est parfait pour ça :
+                                  </p>
+                                  <Button
+                                      className="w-full h-10 rounded-lg bg-amber-500 hover:bg-amber-600 text-black font-black text-xs flex items-center justify-between px-3"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setShowCreditStore(true, suggestedPack.type);
+                                      }}
+                                    >
+                                      <span>🪙 +{suggestedPack.cc + suggestedPack.bonusCC} CC</span>
+                                      <span>{suggestedPack.priceFormatted}</span>
+                                  </Button>
+                                </div>
+                              ) : (
+                                <Button
+                                  className="w-full h-10 rounded-lg bg-amber-500 hover:bg-amber-600 text-black font-black text-xs"
+                                  onClick={(e) => { e.stopPropagation(); setShowCreditStore(true, 'packs'); }}
+                                >
+                                  🪙 Acheter des CC
+                                </Button>
+                              )}
+                              <button 
+                                className="w-full text-center text-[10px] text-white/40 hover:text-white"
+                                onClick={(e) => { e.stopPropagation(); setVisitorUpsellState('teaser'); }}
+                              >
+                                Plus tard
+                              </button>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    )
                   )}
                 </div>
               </motion.div>
@@ -1186,7 +1323,61 @@ function ProfileTab({ onOpenAdmin }: { onOpenAdmin: () => void }) {
         >
           <LogOut className="mr-2 size-4" /> {t('profile.logout')}
         </Button>
+        {/* Delete Account */}
+        <Button
+          variant="outline"
+          className="w-full rounded-xl text-red-500 border-red-500/50 hover:bg-red-500/10 mb-4"
+          onClick={() => setShowDeleteConfirm(true)}
+        >
+          <Trash2 className="mr-2 size-4" /> Supprimer mon compte
+        </Button>
       </div>
+
+      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <DialogContent className="sm:max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl font-bold text-red-500">
+              <Trash2 className="size-6" /> Tu veux vraiment nous quitter ? 😢
+            </DialogTitle>
+            <DialogDescription className="text-base font-medium mt-4">
+              Attention : Cette action est <strong>définitive</strong>.
+              Toutes tes photos, tes messages, tes FoneLoves et ton historique seront perdus pour toujours.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex flex-col gap-3 mt-6 sm:flex-col">
+            <Button
+              variant="default"
+              className="w-full rounded-xl h-12 text-base font-bold"
+              onClick={() => setShowDeleteConfirm(false)}
+              disabled={isDeleting}
+            >
+              Non, je reste !
+            </Button>
+            <Button
+              variant="destructive"
+              className="w-full rounded-xl h-12 text-base font-bold bg-red-100 text-red-600 hover:bg-red-200 border-none shadow-none"
+              onClick={async () => {
+                setIsDeleting(true)
+                try {
+                  const res = await fetch(`/api/user?userId=${currentUser.id}`, {
+                    method: 'DELETE',
+                  })
+                  if (res.ok) {
+                    useAppStore.getState().logout()
+                  }
+                } catch (err) {
+                  console.error('Erreur suppression', err)
+                }
+                setIsDeleting(false)
+                setShowDeleteConfirm(false)
+              }}
+              disabled={isDeleting}
+            >
+              {isDeleting ? 'Suppression en cours...' : 'Oui, supprimer mon compte'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AnimatePresence>
         {showPoster && (
