@@ -206,7 +206,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ conversations })
   } catch (error) {
     console.error('Messages GET error:', error)
-    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
+    return NextResponse.json({ error: "Impossible de charger les messages. Réessaie ! 🔄" }, { status: 500 })
   }
 }
 
@@ -298,7 +298,7 @@ export async function POST(req: NextRequest) {
     })
   } catch (error) {
     console.error('Message POST error:', error)
-    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
+    return NextResponse.json({ error: "Oups, problème de connexion. Réessaie d'envoyer ! 🔄" }, { status: 500 })
   }
 }
 
@@ -331,6 +331,6 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Message PUT error:', error)
-    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
+    return NextResponse.json({ error: "Oups, problème de connexion. Réessaie ! 🔄" }, { status: 500 })
   }
 }

@@ -259,8 +259,12 @@ export default function ChatView({ conversation, onBack }: ChatViewProps) {
       if (!res.ok) {
         const errorData = await res.json()
         setMessages(prev => prev.filter(m => m.id !== tempId))
-        // Show error message
-        alert(errorData.error || 'Erreur lors de l\'envoi')
+        // Put the message back in the input so the user can retry easily
+        if (type === 'text') {
+          setNewMessage(textToSend)
+        }
+        // Show friendly error message
+        alert(errorData.error || "Oups, le message n'est pas parti. Essaie encore ! 🔄")
         return
       }
 
@@ -280,6 +284,10 @@ export default function ChatView({ conversation, onBack }: ChatViewProps) {
     } catch (err) {
       console.error('Send message error:', err)
       setMessages(prev => prev.filter(m => m.id !== tempId))
+      if (type === 'text') {
+        setNewMessage(textToSend)
+      }
+      alert("Oups, problème de connexion. Vérifie ton réseau et réessaie ! 📡")
     }
   }
 

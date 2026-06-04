@@ -1397,13 +1397,13 @@ export default function TikTokViewer({
   const handleDragEnd = useCallback(
     (_: unknown, info: PanInfo) => {
       if (showUndoConfirm || showTutorial) return
-      const threshold = 80
+      const threshold = 60 // Lowered from 80 for a softer, more sensitive interaction (Mobile First UX)
       const yVelocity = Math.abs(info.velocity.y)
 
       if (Math.abs(info.offset.y) > Math.abs(info.offset.x) * 1.5) {
-        if (info.offset.y < -threshold || (info.velocity.y < -300 && yVelocity > 300)) {
+        if (info.offset.y < -threshold || (info.velocity.y < -200 && yVelocity > 200)) {
           handlePassAction()
-        } else if (info.offset.y > threshold || (info.velocity.y > 300 && yVelocity > 300)) {
+        } else if (info.offset.y > threshold || (info.velocity.y > 200 && yVelocity > 200)) {
           handleUndo()
         }
       }
@@ -1570,13 +1570,13 @@ export default function TikTokViewer({
           animate="center"
           exit="exit"
           transition={{
-            y: { type: 'spring', stiffness: 300, damping: 30 },
-            opacity: { duration: 0.25 },
-            scale: { type: 'spring', stiffness: 300, damping: 30 },
+            y: { type: 'spring', stiffness: 220, damping: 28, mass: 0.8 }, // Softer spring for premium fluid feel
+            opacity: { duration: 0.35, ease: 'easeOut' },
+            scale: { type: 'spring', stiffness: 220, damping: 28, mass: 0.8 },
           }}
           drag="y"
           dragConstraints={{ top: 0, bottom: 0 }}
-          dragElastic={0.4}
+          dragElastic={0.65} // Increased elasticity for a lighter, more forgiving touch
           onDragEnd={handleDragEnd}
           className="absolute inset-0 cursor-grab active:cursor-grabbing will-change-transform"
         >

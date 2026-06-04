@@ -105,6 +105,6 @@ export async function POST(req: NextRequest) {
     })
   } catch (error) {
     console.error('Voice Message POST error:', error)
-    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
+    return NextResponse.json({ error: "Oups, problème de connexion. Réessaie d'envoyer ! 🔄" }, { status: 500 })
   }
 }

@@ -1191,10 +1191,10 @@ export default function CreditStore() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="size-8 rounded-full text-muted-foreground"
+                  className="size-12 rounded-full text-muted-foreground active:scale-95"
                   onClick={() => setShowCreditStore(false)}
                 >
-                  <X className="size-4" />
+                  <X className="size-6" />
                 </Button>
               </div>
             </div>

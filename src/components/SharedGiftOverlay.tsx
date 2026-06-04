@@ -74,11 +74,10 @@ export default function SharedGiftOverlay({ amount, giftAmount, onClose }: Share
         {/* Close button */}
         <button
           onClick={onClose}
-          className="absolute top-3 right-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white/60 hover:bg-white/20 transition-colors cursor-pointer"
-          style={{ minWidth: '32px', minHeight: '32px' }}
+          className="absolute top-2 right-2 z-10 flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-white/60 hover:bg-white/20 transition-colors cursor-pointer active:scale-95"
           aria-label="Fermer"
         >
-          <X className="size-4" />
+          <X className="size-6" />
         </button>
 
         {/* Animated sparkles background */}

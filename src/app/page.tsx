@@ -522,6 +522,12 @@ function MessagesTab() {
   }, [autoOpenRequestId, conversations, setAutoOpenRequestId])
 
   useEffect(() => {
+    const handleCloseChat = () => setActiveConversation(null)
+    window.addEventListener('fonelove:close-chat', handleCloseChat)
+    return () => window.removeEventListener('fonelove:close-chat', handleCloseChat)
+  }, [])
+
+  useEffect(() => {
     if (!currentUser) return
 
     const fetchMessages = async () => {
@@ -1713,6 +1719,23 @@ function AppContent() {
   const [isMounted, setIsMounted] = useState(false)
   const [showExitConfirm, setShowExitConfirm] = useState(false)
 
+  // Track local states for the back button handler without re-running useEffect
+  const statesRef = useRef({
+    showRequestDialog,
+    showAdmin,
+    showNotificationCenter,
+    showExitConfirm,
+  })
+
+  useEffect(() => {
+    statesRef.current = {
+      showRequestDialog,
+      showAdmin,
+      showNotificationCenter,
+      showExitConfirm,
+    }
+  }, [showRequestDialog, showAdmin, showNotificationCenter, showExitConfirm])
+
   // ConnectCoin store
   const ccFetchBalance = useConnectCoinStore((s) => s.fetchBalance)
   const { trigger } = useFeedback()
@@ -1968,8 +1991,68 @@ function AppContent() {
     window.history.pushState({ isApp: true }, '')
     
     const handlePopState = (e: PopStateEvent) => {
-      // User pressed back, let's re-push to prevent exit and show dialog
+      // Re-push immediately to maintain the trap
       window.history.pushState({ isApp: true }, '')
+
+      const store = useAppStore.getState()
+      const { 
+        showProfileDetail, setShowProfileDetail,
+        showFilter, setShowFilter,
+        activeTab, setActiveTab,
+        activeChatUserId
+      } = store
+
+      const { 
+        showRequestDialog, 
+        showAdmin, 
+        showNotificationCenter,
+        showExitConfirm 
+      } = statesRef.current
+
+      // Prioritize closing modals and overlays
+      if (showExitConfirm) {
+        setShowExitConfirm(false)
+        return
+      }
+
+      if (showAdmin) {
+        setShowAdmin(false)
+        return
+      }
+
+      if (showNotificationCenter) {
+        setShowNotificationCenter(false)
+        return
+      }
+
+      if (showRequestDialog) {
+        setShowRequestDialog(false)
+        return
+      }
+
+      if (showProfileDetail) {
+        setShowProfileDetail(false)
+        return
+      }
+
+      if (showFilter) {
+        setShowFilter(false)
+        return
+      }
+
+      // If a chat conversation is open, emit event to close it
+      if (activeChatUserId) {
+        window.dispatchEvent(new CustomEvent('fonelove:close-chat'))
+        return
+      }
+
+      // If we are not on the discover tab, go back to discover
+      if (activeTab !== 'discover') {
+        setActiveTab('discover')
+        return
+      }
+
+      // If on discover tab with no overlays, ask for exit confirm
       setShowExitConfirm(true)
     }
 

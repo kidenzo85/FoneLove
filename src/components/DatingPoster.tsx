@@ -180,9 +180,9 @@ export default function DatingPoster({ user, onClose }: DatingPosterProps) {
         <h2 className="text-lg font-bold text-white">{t('poster.title')}</h2>
         <button
           onClick={onClose}
-          className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white"
+          className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-white active:scale-95"
         >
-          <X className="size-5" />
+          <X className="size-6" />
         </button>
       </div>
 

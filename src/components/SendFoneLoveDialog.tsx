@@ -91,7 +91,7 @@ export default function SendFoneLoveDialog() {
                     </h3>
                     <p className="text-xs text-muted-foreground leading-snug break-words mt-0.5">Un geste chaleureux qui va droit au cœur ✨</p>
                   </div>
-                  <button onClick={handleClose} className="p-2 rounded-full hover:bg-muted/50 shrink-0 cursor-pointer ml-1"><X className="size-5 text-muted-foreground" /></button>
+                  <button onClick={handleClose} className="h-12 w-12 flex items-center justify-center rounded-full hover:bg-muted/50 shrink-0 cursor-pointer ml-1 active:scale-95"><X className="size-6 text-muted-foreground" /></button>
                 </div>
 
                 {/* Quick amounts selection */}
