@@ -49,6 +49,7 @@ import StreakWidget from '@/components/StreakWidget'
 import LandingPage from '@/components/LandingPage'
 import ChallengeWidget from '@/components/ChallengeWidget'
 import { useConnectCoinStore } from '@/lib/connectcoin-store'
+import { useFoneLoveStore } from '@/lib/fonelove-store'
 import { useCurrencyStore } from '@/lib/currency-store'
 import { playSound } from '@/lib/sounds'
 import { usePremiumFeatures } from '@/lib/premium-features-store'
@@ -2193,6 +2194,9 @@ function AppContent() {
         activeChatUserId
       } = store
 
+      const ccStore = useConnectCoinStore.getState()
+      const flStore = useFoneLoveStore.getState()
+
       const { 
         showRequestDialog, 
         showAdmin, 
@@ -2203,6 +2207,31 @@ function AppContent() {
       // Prioritize closing modals and overlays
       if (showExitConfirm) {
         setShowExitConfirm(false)
+        return
+      }
+
+      if (ccStore.showCreditStore) {
+        ccStore.setShowCreditStore(false)
+        return
+      }
+
+      if (ccStore.showSpendConfirm) {
+        ccStore.setShowSpendConfirm(null)
+        return
+      }
+
+      if (ccStore.showInsufficientBalance) {
+        ccStore.setShowInsufficientBalance(null)
+        return
+      }
+
+      if (flStore.showWallet) {
+        flStore.setShowWallet(false)
+        return
+      }
+
+      if (flStore.showSendDialog) {
+        flStore.setShowSendDialog(null)
         return
       }
 
