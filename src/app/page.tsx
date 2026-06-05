@@ -140,7 +140,16 @@ function DiscoverTab({ onRequest }: { onRequest: (profile: ProfileWithDetails) =
   const handleView = useCallback((profile: ProfileWithDetails) => {
     setSelectedProfile(profile)
     setShowProfileDetail(true)
-  }, [setSelectedProfile, setShowProfileDetail])
+
+    // Ensure the visit is recorded for the "Qui m'a visité" premium feature
+    if (currentUser?.id) {
+      fetch('/api/profile/visits', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ visitorId: currentUser.id, profileId: profile.id })
+      }).catch(err => console.error('Failed to record visit:', err))
+    }
+  }, [setSelectedProfile, setShowProfileDetail, currentUser])
 
   const handleRefresh = useCallback(async () => {
     try {
@@ -2204,14 +2213,9 @@ function AppContent() {
         showExitConfirm 
       } = statesRef.current
 
-      // Prioritize closing modals and overlays
+      // Prioritize closing modals and overlays from foreground to background
       if (showExitConfirm) {
         setShowExitConfirm(false)
-        return
-      }
-
-      if (ccStore.showCreditStore) {
-        ccStore.setShowCreditStore(false)
         return
       }
 
@@ -2225,13 +2229,18 @@ function AppContent() {
         return
       }
 
-      if (flStore.showWallet) {
-        flStore.setShowWallet(false)
+      if (flStore.showSendDialog) {
+        flStore.setShowSendDialog(null)
         return
       }
 
-      if (flStore.showSendDialog) {
-        flStore.setShowSendDialog(null)
+      if (ccStore.showCreditStore) {
+        ccStore.setShowCreditStore(false)
+        return
+      }
+
+      if (flStore.showWallet) {
+        flStore.setShowWallet(false)
         return
       }
 
